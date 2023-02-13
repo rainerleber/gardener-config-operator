@@ -4,9 +4,9 @@ metadata:
   labels:
     app.kubernetes.io/name: config
     app.kubernetes.io/instance: config-sample
-    app.kubernetes.io/part-of: garden-token-operator
+    app.kubernetes.io/part-of: gardener-config-operator
     app.kubernetes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: garden-token-operator
+    app.kubernetes.io/created-by: gardener-config-operator
   name: config-sample
 spec:
   project: ecs-cs

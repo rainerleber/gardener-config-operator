@@ -50,8 +50,8 @@ metadata:
   name: {{ include "chart.fullname" . }}-manager-rolebinding
   labels:
     app.kubernetes.io/component: rbac
-    app.kubernetes.io/created-by: garden-token-operator
-    app.kubernetes.io/part-of: garden-token-operator
+    app.kubernetes.io/created-by: gardener-config-operator
+    app.kubernetes.io/part-of: gardener-config-operator
   {{- include "chart.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io

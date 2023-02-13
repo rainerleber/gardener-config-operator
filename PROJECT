@@ -5,7 +5,7 @@
 domain: cluster.gardener
 layout:
 - go.kubebuilder.io/v4-alpha
-projectName: garden-config-operator
+projectName: gardener-config-operator
 repo: cluster.gardener/config
 resources:
 - api:
