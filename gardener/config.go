@@ -26,7 +26,7 @@ func (r *DefaultConfigRetriever) GetConfig(project string, shoot string, seconds
 			return []string{newConfig}, nil
 		}
 	} else {
-		return nil, fmt.Errorf("something went wrong getting the shoot cluster config, check if cluster with provided name exsists")
+		return nil, fmt.Errorf(fmt.Sprintf("something went wrong getting the shoot cluster config, check if cluster %s exsists", shoot))
 	}
 }
 

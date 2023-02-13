@@ -108,7 +108,10 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	secret := &v1.Secret{}
 	var message string
+
 	// Generate a new secret
+	// Logic: if client.get produce error no secret is present
+	// if the error is "not found" create a secret
 	if err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: argoConfig.Spec.Shoot}, secret); err != nil {
 		if errors.IsNotFound(err) {
 			message = fmt.Sprintf("Generate new ArgoCDCluster secret %s/%s", req.Namespace, argoConfig.Spec.Shoot)
@@ -122,17 +125,16 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return ctrl.Result{}, err
 		}
 	} else {
+		// update the secret
 		message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoConfig.Spec.Shoot)
 		reqLogger.Info(message)
+		secret.Data = newConfig.Data
+		if err = r.Client.Update(ctx, secret); err != nil {
+			return ctrl.Result{}, err
+		}
+		argoConfig.Status.Phase = "Updated"
+		argoConfig.Status.LastUpdatedTime = &metav1.Time{Time: time.Now()}
 	}
-	// update the secret
-	secret.Data = newConfig.Data
-	if err = r.Client.Update(ctx, secret); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	argoConfig.Status.Phase = "Updated"
-	argoConfig.Status.LastUpdatedTime = &metav1.Time{Time: time.Now()}
 
 	if err := r.Client.Status().Update(ctx, argoConfig); err != nil {
 		reqLogger.Info("unable to update ArgoCDCluster secret status - try reconciling")
