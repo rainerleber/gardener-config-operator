@@ -12,4 +12,4 @@ spec:
   project: ecs-cs
   shoot: test-un10001
   frequency: 1h
-  desiredoutput: Plain
+  desiredoutput: ArgoCD

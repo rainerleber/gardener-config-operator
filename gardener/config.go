@@ -7,24 +7,31 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 // logic for the controller
-func (r *DefaultConfigRetriever) GetConfig(project string, shoot string, secondsToExpiration int, output string) (string, string, string, string) {
-	newConfig := getClusterConfig(project, shoot, secondsToExpiration)
-	if output == "ArgoCD" {
-		return yamlParse(newConfig)
+func (r *DefaultConfigRetriever) GetConfig(project string, shoot string, secondsToExpiration int, output string) []string {
+	if checkClusterAvailability(project, shoot) {
+		newConfig := getClusterConfig(project, shoot, secondsToExpiration)
+		if output == "ArgoCD" {
+			parsed := yamlParse(newConfig)
+			return parsed
+		} else {
+			return []string{newConfig}
+		}
 	} else {
-		return newConfig, "", "", ""
+		return []string{}
 	}
 }
 
 type ConfigRetriever interface {
-	GetConfig(project string, shoot string, secondsToExpiration int, output string) (string, string, string, string)
+	GetConfig(project string, shoot string, secondsToExpiration int, output string) []string
 }
 
 type DefaultConfigRetriever struct {
@@ -100,18 +107,43 @@ type KubeConfig struct {
 	CurrentContext string     `yaml:"current-context"`
 }
 
+func checkClusterAvailability(project string, shoot string) bool {
+	kubeconfig := os.Getenv(kubeConfigEnvName)
+	// use the current context in kubeconfig
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	if err != nil {
+		log.Println("Error on response.\n[ERROR] -", err)
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Println("Error on response.\n[ERROR] -", err)
+	}
+
+	secrets, err := clientset.CoreV1().Secrets(fmt.Sprintf("garden-%s", project)).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		log.Println("Error on response.\n[ERROR] -", err)
+	}
+	for _, secret := range secrets.Items {
+		if strings.Contains(secret.Name, shoot) {
+			return true
+		}
+	}
+	return false
+}
+
 // generate the kubeconfig out of the gardener seed cluster
 func getClusterConfig(project string, shoot string, expiration int) string {
 	kubeconfig := os.Getenv(kubeConfigEnvName)
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
-		panic(err.Error())
+		log.Println("Error in the current context.\n[ERROR] -", err)
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		panic(err.Error())
+		log.Println("Error on clientset.\n[ERROR] -", err)
 	}
 
 	expire := ConfigSpec{ExpirationSeconds: expiration}
@@ -127,8 +159,7 @@ func getClusterConfig(project string, shoot string, expiration int) string {
 		Body(json).
 		DoRaw(context.TODO())
 	if err != nil {
-		fmt.Println(string(resp))
-		panic(err.Error())
+		fmt.Println(string(resp), err)
 	}
 
 	data := JsonResponse{}
@@ -138,18 +169,22 @@ func getClusterConfig(project string, shoot string, expiration int) string {
 }
 
 // parse the returned kubeconfig
-func yamlParse(encodedYaml string) (caData string, clusterAddress string, certData string, keyData string) {
+func yamlParse(encodedYaml string) []string {
 	sDec, err := base64.StdEncoding.DecodeString(encodedYaml)
 	if err != nil {
-		panic(err.Error())
+		log.Println("Error on YAML Encode.\n[ERROR] -", err)
 	}
 	var kubeconfig KubeConfig
 	err = yaml.Unmarshal(sDec, &kubeconfig)
 	if err != nil {
-		panic(err.Error())
+		log.Println("Error on YAML Unmarshaling.\n[ERROR] -", err)
 	}
 
 	usedContext := kubeconfig.CurrentContext
+	var caData string
+	var clusterAddress string
+	var certData string
+	var keyData string
 	for _, e := range kubeconfig.Clusters {
 		if e.Name == usedContext {
 			caData = fmt.Sprintf(e.Cluster.CaData)
@@ -161,5 +196,5 @@ func yamlParse(encodedYaml string) (caData string, clusterAddress string, certDa
 		certData = fmt.Sprintf(e.User.ClientCert)
 		keyData = fmt.Sprintf(e.User.ClientKey)
 	}
-	return
+	return []string{caData, clusterAddress, certData, keyData}
 }
