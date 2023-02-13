@@ -1,6 +1,6 @@
 apiVersion: v2
-name: chart
-description: A Helm chart for Kubernetes
+name: gardener-config-generator
+description: A Helm chart to generate seed cluster token dynamically
 # A chart can be either an 'application' or a 'library' chart.
 #
 # Application charts are a collection of templates that can be packaged into versioned archives
