@@ -35,9 +35,12 @@ func NewDefaultSecretGenerator(r ConfigRetriever) *DefaultSecretGenerator {
 // generate a secret to define declarative a managed ArgoCD Cluster
 func (sg *DefaultSecretGenerator) GenerateSecret(input *Input) (*v1.Secret, error) {
 	frequency := input.S.Spec.Frequency.Duration.Seconds()
-	returendData := sg.r.GetConfig(input.S.Spec.Project, input.S.Spec.Shoot, int(frequency), input.S.Spec.DesiredOutput)
+	returendData, err := sg.r.GetConfig(input.S.Spec.Project, input.S.Spec.Shoot, int(frequency), input.S.Spec.DesiredOutput)
+	if err != nil {
+		return nil, err
+	}
 
-	if input.S.Spec.DesiredOutput == "ArgoCD" && len(returendData) > 0 {
+	if input.S.Spec.DesiredOutput == "ArgoCD" {
 		// caData, clusterAddress, certData, keyData
 		argoConfig := fmt.Sprintf(`{"tlsClientConfig": {"caData": %s, "certData": %s, "keyData": %s}}`, returendData[0], returendData[2], returendData[3])
 
@@ -60,7 +63,7 @@ func (sg *DefaultSecretGenerator) GenerateSecret(input *Input) (*v1.Secret, erro
 				"config": byteConfig,
 			},
 		}, nil
-	} else if input.S.Spec.DesiredOutput == "Plain" && len(returendData) > 0 {
+	} else {
 		decodedKubeConfig, _ := base64.StdEncoding.DecodeString(returendData[0])
 		return &v1.Secret{
 			TypeMeta: secretMeta,
@@ -72,7 +75,5 @@ func (sg *DefaultSecretGenerator) GenerateSecret(input *Input) (*v1.Secret, erro
 				"kubeconfig": []byte(decodedKubeConfig),
 			},
 		}, nil
-	} else {
-		return nil, fmt.Errorf("something went wrong getting the shoot cluster config, check if cluster name exsists")
 	}
 }

@@ -16,22 +16,22 @@ import (
 )
 
 // logic for the controller
-func (r *DefaultConfigRetriever) GetConfig(project string, shoot string, secondsToExpiration int, output string) []string {
-	if checkClusterAvailability(project, shoot) {
+func (r *DefaultConfigRetriever) GetConfig(project string, shoot string, secondsToExpiration int, output string) ([]string, error) {
+	if checkShootClusterAvailability(project, shoot) {
 		newConfig := getClusterConfig(project, shoot, secondsToExpiration)
 		if output == "ArgoCD" {
 			parsed := yamlParse(newConfig)
-			return parsed
+			return parsed, nil
 		} else {
-			return []string{newConfig}
+			return []string{newConfig}, nil
 		}
 	} else {
-		return []string{}
+		return nil, fmt.Errorf("something went wrong getting the shoot cluster config, check if cluster with provided name exsists")
 	}
 }
 
 type ConfigRetriever interface {
-	GetConfig(project string, shoot string, secondsToExpiration int, output string) []string
+	GetConfig(project string, shoot string, secondsToExpiration int, output string) ([]string, error)
 }
 
 type DefaultConfigRetriever struct {
@@ -107,7 +107,7 @@ type KubeConfig struct {
 	CurrentContext string     `yaml:"current-context"`
 }
 
-func checkClusterAvailability(project string, shoot string) bool {
+func checkShootClusterAvailability(project string, shoot string) bool {
 	kubeconfig := os.Getenv(kubeConfigEnvName)
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
