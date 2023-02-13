@@ -67,7 +67,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		S: argoConfig,
 	})
 	if err != nil {
-		reqLogger.Error(err, "can not generate secret")
+		reqLogger.Error(err, "not able to generate secret")
 		return ctrl.Result{}, err
 	}
 
@@ -137,8 +137,21 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	if err := r.Client.Status().Update(ctx, argoConfig); err != nil {
-		reqLogger.Info("unable to update ArgoCDCluster secret status - try reconciling")
-		return ctrl.Result{}, err
+		if errors.IsConflict(err) {
+			err := r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: argoConfig.Spec.Shoot}, secret)
+			if err != nil {
+				reqLogger.Info("unable to get latest secret data - try reconciling")
+				return ctrl.Result{}, err
+			}
+			r.Client.Status().Update(ctx, argoConfig)
+			if err != nil {
+				reqLogger.Info("unable to get update secret data - try reconciling")
+				return ctrl.Result{}, err
+			}
+		} else {
+			reqLogger.Info("unable to update ArgoCDCluster secret status - try reconciling")
+			return ctrl.Result{}, err
+		}
 	}
 	message = fmt.Sprintf("RequeueAfter: %s", argoConfig.Spec.Frequency.Duration)
 	reqLogger.Info(message)
