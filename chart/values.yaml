@@ -1,0 +1,52 @@
+controllerManager:
+  kubeRbacProxy:
+    image:
+      repository: gcr.io/kubebuilder/kube-rbac-proxy
+      tag: v0.13.1
+    resources:
+      limits:
+        cpu: 500m
+        memory: 128Mi
+      requests:
+        cpu: 5m
+        memory: 64Mi
+  manager:
+    image:
+      repository: ghcr.io/rainerleber/gardener-config-operator:latest
+      tag: latest
+    resources:
+      limits:
+        cpu: 500m
+        memory: 128Mi
+      requests:
+        cpu: 10m
+        memory: 64Mi
+  replicas: 1
+gardenerSeedKubeConfig:
+  kubeconfig: |
+      apiVersion: v1
+      kind: Config
+      current-context: test
+      contexts:
+        - name: test
+          context:
+            cluster: garden
+            user: svcuser
+            namespace: garden-ecs-cs
+      clusters:
+        - name: garden
+          cluster:
+            server: 'https://api.test.test'
+      users:
+        - name: svcuser
+          user:
+            token: >-
+              eycccsxxx
+kubernetesClusterDomain: cluster.local
+metricsService:
+  ports:
+  - name: https
+    port: 8443
+    protocol: TCP
+    targetPort: https
+  type: ClusterIP

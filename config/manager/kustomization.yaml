@@ -1,0 +1,10 @@
+resources:
+- manager.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+generatorOptions:
+  disableNameSuffixHash: true
+images:
+- name: controller
+  newName: ghcr.io/rainerleber/gardener-config-operator:latest
+  newTag: latest

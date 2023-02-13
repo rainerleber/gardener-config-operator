@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "chart.fullname" . }}-gardener-seed-kube-config
+  labels:
+  {{- include "chart.labels" . | nindent 4 }}
+stringData:
+  kubeconfig: {{ required "gardenerSeedKubeConfig.kubeconfig is required" .Values.gardenerSeedKubeConfig.kubeconfig
+    | quote }}
