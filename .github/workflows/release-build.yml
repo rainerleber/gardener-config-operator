@@ -41,7 +41,7 @@ jobs:
           python-version: 'pypy-3.8'
 
       - name: Build image
-        run: docker build -f Containerfile . -t ${IMAGE,,}
+        run: docker build -f Dockerfile . -t ${IMAGE,,}
         env:
           IMAGE: ghcr.io/${{ github.repository }}:latest
 
