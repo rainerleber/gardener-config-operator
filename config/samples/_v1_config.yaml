@@ -1,0 +1,15 @@
+apiVersion: cluster.gardener/v1
+kind: Config
+metadata:
+  labels:
+    app.kubernetes.io/name: config
+    app.kubernetes.io/instance: config-sample
+    app.kubernetes.io/part-of: garden-token-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: garden-token-operator
+  name: config-sample
+spec:
+  project: ecs-cs
+  shoot: hecxx-un10001
+  frequency: 1h
+  desiredoutput: Plain

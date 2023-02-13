@@ -1,0 +1,52 @@
+controllerManager:
+  kubeRbacProxy:
+    image:
+      repository: gcr.io/kubebuilder/kube-rbac-proxy
+      tag: v0.13.1
+    resources:
+      limits:
+        cpu: 500m
+        memory: 128Mi
+      requests:
+        cpu: 5m
+        memory: 64Mi
+  manager:
+    image:
+      repository: rainair/gardener
+      tag: latest
+    resources:
+      limits:
+        cpu: 500m
+        memory: 128Mi
+      requests:
+        cpu: 10m
+        memory: 64Mi
+  replicas: 1
+gardenerSeedKubeConfig:
+  kubeconfig: |
+      apiVersion: v1
+      kind: Config
+      current-context: garden-ecs-cs-ecs-cs-argowf
+      contexts:
+        - name: garden-ecs-cs-ecs-cs-argowf
+          context:
+            cluster: garden
+            user: ecs-cs-argowf
+            namespace: garden-ecs-cs
+      clusters:
+        - name: garden
+          cluster:
+            server: 'https://api.live.gardener.cloud.sap'
+      users:
+        - name: ecs-cs-argowf
+          user:
+            token: >-
+              eyJhbGciOiJSUzI1NiIsImtpZCI6ImNpV1JYb2tmZkFQRzhwWXpwbDE0NlZYMEFORE9NMUU1QUdrOVo5VVRlUDgifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJnYXJkZW4tZWNzLWNzIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6ImVjcy1jcy1hcmdvd2YtdG9rZW4tZDcybHAiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoiZWNzLWNzLWFyZ293ZiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6IjFkOThhZGY0LTQ0YzEtNGQzMi1hZTQzLTQyNDI4ZDRiMmNhZiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDpnYXJkZW4tZWNzLWNzOmVjcy1jcy1hcmdvd2YifQ.GIOYgjNdA_TGoiEIVFF6KEJtWlAP2cvT5ZgH8IwRb8LBX3P0RQioexcLTM4ZvXSa7sDM2jrxLMPLZhza-Iqp3PEoUAsagmYHOOmPU04-iQWiIffs7AM3nQn6RdJYzQyj491sDMj6w1Op5BonRhE65Yo06ZvUU9iyJrOFvjsWm5zUuaGoVb7foXm_IIXmSiwDRoxmhxYErO3Yw8byY3HlyFXKn4tKPrfX0lsLzlamChXMsngNqqkEehU5Zg-0a8QsQBQONVfV7LH33mLD6wzd5ypqZRKiwQ7ke-DwGhdWx2b9H-u2DoIfD1zLF5jFSJYdm1-x0I73l-qPFrpuXqBOgQ
+kubernetesClusterDomain: cluster.local
+metricsService:
+  ports:
+  - name: https
+    port: 8443
+    protocol: TCP
+    targetPort: https
+  type: ClusterIP

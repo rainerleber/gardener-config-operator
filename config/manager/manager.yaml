@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    control-plane: controller-manager
+    app.kubernetes.io/name: namespace
+    app.kubernetes.io/instance: system
+    app.kubernetes.io/component: manager
+    app.kubernetes.io/created-by: garden-token-operator
+    app.kubernetes.io/part-of: garden-token-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+  labels:
+    control-plane: controller-manager
+    app.kubernetes.io/name: deployment
+    app.kubernetes.io/instance: controller-manager
+    app.kubernetes.io/component: manager
+    app.kubernetes.io/created-by: garden-token-operator
+    app.kubernetes.io/part-of: garden-token-operator
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        control-plane: controller-manager
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+      - command:
+        - /manager
+        args:
+        - --leader-elect
+        image: controller:latest
+        name: manager
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - "ALL"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        env:
+        - name: KUBECONFIG_REMOTE
+          value: /kube/kubeconfig
+        - name: WATCH_NAMESPACE
+          value: ""
+        volumeMounts:
+        - name: kube-konfig
+          mountPath: /kube
+      volumes:
+      - name: kube-konfig
+        secret:
+          secretName: gardener-seed-kube-config
+          optional: true
+      serviceAccountName: controller-manager
+      terminationGracePeriodSeconds: 10
+---
+kind: Secret
+apiVersion: v1
+metadata:
+  name: gardener-seed-kube-config
+stringData:
+  kubeconfig: |
+    apiVersion: v1
+    kind: Config
+    current-context: garden-ecs-cs-ecs-cs-argowf
+    contexts:
+      - name: garden-ecs-cs-ecs-cs-argowf
+        context:
+          cluster: garden
+          user: ecs-cs-argowf
+          namespace: garden-ecs-cs
+    clusters:
+      - name: garden
+        cluster:
+          server: 'https://api.live.gardener.cloud.sap'
+    users:
+      - name: ecs-cs-argowf
+        user:
+          token: >-
+            eyJhbGciOiJSUzI1NiIsImtpZCI6ImNpV1JYb2tmZkFQRzhwWXpwbDE0NlZYMEFORE9NMUU1QUdrOVo5VVRlUDgifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJnYXJkZW4tZWNzLWNzIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6ImVjcy1jcy1hcmdvd2YtdG9rZW4tZDcybHAiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoiZWNzLWNzLWFyZ293ZiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6IjFkOThhZGY0LTQ0YzEtNGQzMi1hZTQzLTQyNDI4ZDRiMmNhZiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDpnYXJkZW4tZWNzLWNzOmVjcy1jcy1hcmdvd2YifQ.GIOYgjNdA_TGoiEIVFF6KEJtWlAP2cvT5ZgH8IwRb8LBX3P0RQioexcLTM4ZvXSa7sDM2jrxLMPLZhza-Iqp3PEoUAsagmYHOOmPU04-iQWiIffs7AM3nQn6RdJYzQyj491sDMj6w1Op5BonRhE65Yo06ZvUU9iyJrOFvjsWm5zUuaGoVb7foXm_IIXmSiwDRoxmhxYErO3Yw8byY3HlyFXKn4tKPrfX0lsLzlamChXMsngNqqkEehU5Zg-0a8QsQBQONVfV7LH33mLD6wzd5ypqZRKiwQ7ke-DwGhdWx2b9H-u2DoIfD1zLF5jFSJYdm1-x0I73l-qPFrpuXqBOgQ
+
