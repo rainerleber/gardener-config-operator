@@ -125,10 +125,9 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return ctrl.Result{}, err
 		}
 	} else {
-		calculatedTime := ((argoConfig.Status.LastUpdatedTime).Add(argoConfig.Spec.Frequency.Duration)).Add(-1 * time.Minute)
-		if calculatedTime.After(time.Now()) {
-			reqLogger.Info(fmt.Sprintln(calculatedTime))
-			reqLogger.Info(fmt.Sprintln(time.Now()))
+		reqLogger.Info("Idempotence Check")
+		calculatedTime := ((argoConfig.Status.LastUpdatedTime).Add(argoConfig.Spec.Frequency.Duration))
+		if calculatedTime.After(time.Now()) || calculatedTime.Equal(time.Now()) {
 			// update the secret
 			message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoConfig.Spec.Shoot)
 			reqLogger.Info(message)
