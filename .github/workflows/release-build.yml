@@ -40,20 +40,10 @@ jobs:
         with:
           python-version: 'pypy-3.8'
 
-      - name: Install Ansible Builder and requirements
-        run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip --no-cache-dir install -r builder-requirements.txt
-
-      - name: Run Ansible Builder
-        run: |
-          ansible-builder create --context .
-
       - name: Build image
         run: docker build -f Containerfile . -t ${IMAGE,,}
         env:
           IMAGE: ghcr.io/${{ github.repository }}:latest
-          # IMAGE: ghcr.io/${{ github.repository }}:${{needs.update_release.outputs.output1}}
 
       - name: Login to ghcr.io
         run: docker login https://ghcr.io -u token --password-stdin <<< ${{ github.token }}
@@ -62,4 +52,3 @@ jobs:
         run: docker push ${IMAGE,,}
         env:
           IMAGE: ghcr.io/${{ github.repository }}:latest
-          # IMAGE: ghcr.io/${{ github.repository }}:${{needs.update_release.outputs.output1}}

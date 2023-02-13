@@ -10,6 +10,6 @@ metadata:
   name: config-sample
 spec:
   project: ecs-cs
-  shoot: hecxx-un10001
+  shoot: test-un10001
   frequency: 1h
   desiredoutput: Plain
