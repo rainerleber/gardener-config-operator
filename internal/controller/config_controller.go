@@ -58,7 +58,6 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	err := r.Client.Get(ctx, req.NamespacedName, argoConfig)
 	if err != nil {
-		reqLogger.Info(fmt.Sprintf("Can not find Argo Config CR %s - try reconciling", req.NamespacedName))
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -91,6 +90,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if controllerutil.ContainsFinalizer(argoConfig, finalizerName) {
 			// our finalizer is present, so lets handle any external dependency
 			if err := r.Client.Delete(ctx, newConfig); err != nil {
+				reqLogger.Info("Delete Secret", req.NamespacedName)
 				// if fail to delete the external dependency here, return with error
 				// so that it can be retried
 				return ctrl.Result{}, err
