@@ -125,15 +125,20 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return ctrl.Result{}, err
 		}
 	} else {
-		// update the secret
-		message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoConfig.Spec.Shoot)
-		reqLogger.Info(message)
-		secret.Data = newConfig.Data
-		if err = r.Client.Update(ctx, secret); err != nil {
-			return ctrl.Result{}, err
+		calculatedTime := ((argoConfig.Status.LastUpdatedTime).Add(argoConfig.Spec.Frequency.Duration)).Add(-1 * time.Minute)
+		if calculatedTime.After(time.Now()) {
+			reqLogger.Info(fmt.Sprintln(calculatedTime))
+			reqLogger.Info(fmt.Sprintln(time.Now()))
+			// update the secret
+			message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoConfig.Spec.Shoot)
+			reqLogger.Info(message)
+			secret.Data = newConfig.Data
+			if err = r.Client.Update(ctx, secret); err != nil {
+				return ctrl.Result{}, err
+			}
+			argoConfig.Status.Phase = "Updated"
+			argoConfig.Status.LastUpdatedTime = &metav1.Time{Time: time.Now()}
 		}
-		argoConfig.Status.Phase = "Updated"
-		argoConfig.Status.LastUpdatedTime = &metav1.Time{Time: time.Now()}
 	}
 
 	if err := r.Client.Status().Update(ctx, argoConfig); err != nil {
@@ -144,10 +149,6 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				return ctrl.Result{}, err
 			}
 			r.Client.Status().Update(ctx, argoConfig)
-			if err != nil {
-				reqLogger.Info("unable to get update secret data - try reconciling")
-				return ctrl.Result{}, err
-			}
 		} else {
 			reqLogger.Info("unable to update ArgoCDCluster secret status - try reconciling")
 			return ctrl.Result{}, err
