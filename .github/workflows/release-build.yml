@@ -1,0 +1,65 @@
+---
+name: Release and Build
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  update_release:
+    runs-on: ubuntu-latest
+    outputs:
+      output1: ${{ steps.release.outputs.name }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: release
+        id: release
+        uses: release-drafter/release-drafter@v5
+        with:
+          config-name: release-drafter.yml
+          disable-autolabeler: false
+          publish: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    needs: update_release
+    runs-on: ubuntu-latest
+
+    permissions:
+      packages: write
+      contents: read
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 'pypy-3.8'
+
+      - name: Install Ansible Builder and requirements
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip --no-cache-dir install -r builder-requirements.txt
+
+      - name: Run Ansible Builder
+        run: |
+          ansible-builder create --context .
+
+      - name: Build image
+        run: docker build -f Containerfile . -t ${IMAGE,,}
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}:latest
+          # IMAGE: ghcr.io/${{ github.repository }}:${{needs.update_release.outputs.output1}}
+
+      - name: Login to ghcr.io
+        run: docker login https://ghcr.io -u token --password-stdin <<< ${{ github.token }}
+
+      - name: Publish image
+        run: docker push ${IMAGE,,}
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}:latest
+          # IMAGE: ghcr.io/${{ github.repository }}:${{needs.update_release.outputs.output1}}
