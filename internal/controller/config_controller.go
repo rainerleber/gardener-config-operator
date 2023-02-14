@@ -136,19 +136,11 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, nil
 	}
 
-	// if err := r.Client.Status().Update(ctx, argoConfig); err != nil {
-	// 	if errors.IsConflict(err) {
-	// 		r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: argoConfig.Spec.Shoot}, secret)
-	// 		err := r.Client.Status().Update(ctx, argoConfig)
-	// 		if err != nil {
-	// 			reqLogger.Info("unable to update CR - try reconciling")
-	// 			return ctrl.Result{}, err
-	// 		}
-	// 	} else if !errors.IsConflict(err) {
-	// 		reqLogger.Info("unable to update CR - try reconciling")
-	// 		return ctrl.Result{}, err
-	// 	}
-	// }
+	if err := r.Client.Status().Update(ctx, argoConfig); err != nil {
+		reqLogger.Info("unable to update CR - try reconciling")
+		return ctrl.Result{}, err
+	}
+
 	message = fmt.Sprintf("RequeueAfter: %s", argoConfig.Spec.Frequency.Duration)
 	reqLogger.Info(message)
 	return ctrl.Result{RequeueAfter: argoConfig.Spec.Frequency.Duration}, nil
