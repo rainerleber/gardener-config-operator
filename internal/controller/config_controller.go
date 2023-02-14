@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -56,13 +55,8 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	//Get CRD config object
 	argoConfig := &clustergardenerv1.Config{}
 
-	err := r.Client.Get(ctx, req.NamespacedName, argoConfig)
-	if err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-
 	reqLogger.Info("Generate baseline ArgoCDCluster Config from CR")
-	newConfig, err := r.SecretGenerator.GenerateSecret(&gardener.Input{
+	secret, err := r.SecretGenerator.GenerateSecret(&gardener.Input{
 		S: argoConfig,
 	})
 	if err != nil {
@@ -70,17 +64,16 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	secret := &v1.Secret{}
 	var message string
 
 	// Generate a new secret
 	// Logic: if client.get produce error no secret is present
 	// if the error is "not found" create a secret
-	if err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: argoConfig.Spec.Shoot}, secret); err != nil {
+	if err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: argoConfig.Spec.Shoot}, argoConfig); err != nil {
 		if errors.IsNotFound(err) {
 			message = fmt.Sprintf("Generate new secret %s/%s", req.Namespace, argoConfig.Spec.Shoot)
 			reqLogger.Info(message)
-			if err = r.Client.Create(ctx, newConfig); err != nil {
+			if err = r.Client.Create(ctx, secret); err != nil {
 				reqLogger.Info("unable to create secret - try reconciling")
 				return ctrl.Result{}, err
 			}
@@ -92,7 +85,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// update the secret
 		message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoConfig.Spec.Shoot)
 		reqLogger.Info(message)
-		secret.Data = newConfig.Data
+
 		if err = r.Client.Update(ctx, secret); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -109,9 +102,9 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// then lets add the finalizer and update the object. This is equivalent
 		// registering our finalizer.
 		if !controllerutil.ContainsFinalizer(argoConfig, finalizerName) {
+			reqLogger.Info("Update Finalizer", req.NamespacedName)
 			controllerutil.AddFinalizer(argoConfig, finalizerName)
 			if err := r.Client.Update(ctx, argoConfig); err != nil {
-				reqLogger.Info("Update Finalizer", req.NamespacedName)
 				return ctrl.Result{}, client.IgnoreNotFound(err)
 			}
 		}
@@ -119,13 +112,12 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// The object is being deleted
 		if controllerutil.ContainsFinalizer(argoConfig, finalizerName) {
 			// our finalizer is present, so lets handle any external dependency
-			if err := r.Client.Delete(ctx, newConfig); err != nil {
-				reqLogger.Info("Delete Secret", req.NamespacedName)
+			reqLogger.Info("Delete Secret", req.NamespacedName)
+			if err := r.Client.Delete(ctx, secret); err != nil {
 				// if fail to delete the external dependency here, return with error
 				// so that it can be retried
 				return ctrl.Result{}, err
 			}
-
 			// remove finalizer from the list and update it.
 			controllerutil.RemoveFinalizer(argoConfig, finalizerName)
 			if err := r.Client.Update(ctx, argoConfig); err != nil {
