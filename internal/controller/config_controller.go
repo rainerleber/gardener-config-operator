@@ -70,6 +70,36 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
+	secret := &v1.Secret{}
+	var message string
+
+	// Generate a new secret
+	// Logic: if client.get produce error no secret is present
+	// if the error is "not found" create a secret
+	if err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: argoConfig.Spec.Shoot}, secret); err != nil {
+		if errors.IsNotFound(err) {
+			message = fmt.Sprintf("Generate new secret %s/%s", req.Namespace, argoConfig.Spec.Shoot)
+			reqLogger.Info(message)
+			if err = r.Client.Create(ctx, newConfig); err != nil {
+				reqLogger.Info("unable to create secret - try reconciling")
+				return ctrl.Result{}, err
+			}
+			argoConfig.Status.Phase = "Created"
+		} else {
+			return ctrl.Result{}, err
+		}
+	} else {
+		// update the secret
+		message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoConfig.Spec.Shoot)
+		reqLogger.Info(message)
+		secret.Data = newConfig.Data
+		if err = r.Client.Update(ctx, secret); err != nil {
+			return ctrl.Result{}, err
+		}
+		argoConfig.Status.Phase = "Updated"
+		argoConfig.Status.LastUpdatedTime = &metav1.Time{Time: time.Now()}
+	}
+
 	// Finalizer
 	finalizerName := "configs.cluster.gardener/finalizer"
 
@@ -106,49 +136,19 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, nil
 	}
 
-	secret := &v1.Secret{}
-	var message string
-
-	// Generate a new secret
-	// Logic: if client.get produce error no secret is present
-	// if the error is "not found" create a secret
-	if err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: argoConfig.Spec.Shoot}, secret); err != nil {
-		if errors.IsNotFound(err) {
-			message = fmt.Sprintf("Generate new secret %s/%s", req.Namespace, argoConfig.Spec.Shoot)
-			reqLogger.Info(message)
-			if err = r.Client.Create(ctx, newConfig); err != nil {
-				reqLogger.Info("unable to create secret - try reconciling")
-				return ctrl.Result{}, err
-			}
-			argoConfig.Status.Phase = "Created"
-		} else {
-			return ctrl.Result{}, err
-		}
-	} else {
-		// update the secret
-		message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoConfig.Spec.Shoot)
-		reqLogger.Info(message)
-		secret.Data = newConfig.Data
-		if err = r.Client.Update(ctx, secret); err != nil {
-			return ctrl.Result{}, err
-		}
-		argoConfig.Status.Phase = "Updated"
-		argoConfig.Status.LastUpdatedTime = &metav1.Time{Time: time.Now()}
-	}
-
-	if err := r.Client.Status().Update(ctx, argoConfig); err != nil {
-		if errors.IsConflict(err) {
-			r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: argoConfig.Spec.Shoot}, secret)
-			err := r.Client.Status().Update(ctx, argoConfig)
-			if err != nil {
-				reqLogger.Info("unable to update CR - try reconciling")
-				return ctrl.Result{}, err
-			}
-		} else if !errors.IsConflict(err) {
-			reqLogger.Info("unable to update CR - try reconciling")
-			return ctrl.Result{}, err
-		}
-	}
+	// if err := r.Client.Status().Update(ctx, argoConfig); err != nil {
+	// 	if errors.IsConflict(err) {
+	// 		r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: argoConfig.Spec.Shoot}, secret)
+	// 		err := r.Client.Status().Update(ctx, argoConfig)
+	// 		if err != nil {
+	// 			reqLogger.Info("unable to update CR - try reconciling")
+	// 			return ctrl.Result{}, err
+	// 		}
+	// 	} else if !errors.IsConflict(err) {
+	// 		reqLogger.Info("unable to update CR - try reconciling")
+	// 		return ctrl.Result{}, err
+	// 	}
+	// }
 	message = fmt.Sprintf("RequeueAfter: %s", argoConfig.Spec.Frequency.Duration)
 	reqLogger.Info(message)
 	return ctrl.Result{RequeueAfter: argoConfig.Spec.Frequency.Duration}, nil
