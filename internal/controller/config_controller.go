@@ -93,9 +93,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	} else {
 		// update the secret
 		timeNow := &metav1.Time{Time: time.Now().Add(time.Duration(+1) * time.Minute)}
-		reqLogger.Info(timeNow.String())
 		nextReconiling := argoConfig.Status.LastUpdatedTime.Add(argoConfig.Spec.Frequency.Duration)
-		reqLogger.Info(nextReconiling.String())
 		if timeNow.After(nextReconiling) {
 			message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoConfig.Spec.Shoot)
 			reqLogger.Info(message)
