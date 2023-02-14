@@ -56,7 +56,6 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	//Get CRD config object
 	argoConfig := &clustergardenerv1.Config{}
 
-	// needed for first
 	err := r.Client.Get(ctx, req.NamespacedName, argoConfig)
 	if err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -77,7 +76,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	// Generate a new secret
 	// Logic: if client.get produce error no secret is present
 	// if the error is "not found" create a secret
-	if err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: argoConfig.Spec.Shoot}, argoConfig); err != nil {
+	if err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: argoConfig.Spec.Shoot}, secret); err != nil {
 		if errors.IsNotFound(err) {
 			message = fmt.Sprintf("Generate new secret %s/%s", req.Namespace, argoConfig.Spec.Shoot)
 			reqLogger.Info(message)
@@ -86,7 +85,6 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				return ctrl.Result{}, err
 			}
 			argoConfig.Status.Phase = "Created"
-			argoConfig.Status.LastUpdatedTime = &metav1.Time{Time: time.Now()}
 		} else {
 			return ctrl.Result{}, err
 		}
@@ -127,6 +125,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				// so that it can be retried
 				return ctrl.Result{}, err
 			}
+
 			// remove finalizer from the list and update it.
 			controllerutil.RemoveFinalizer(argoConfig, finalizerName)
 			if err := r.Client.Update(ctx, argoConfig); err != nil {
