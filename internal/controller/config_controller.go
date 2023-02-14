@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -55,14 +56,14 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	//Get CRD config object
 	argoConfig := &clustergardenerv1.Config{}
 
-	// needed for first check
+	// needed for first
 	err := r.Client.Get(ctx, req.NamespacedName, argoConfig)
 	if err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	reqLogger.Info("Generate baseline ArgoCDCluster Config from CR")
-	secret, err := r.SecretGenerator.GenerateSecret(&gardener.Input{
+	newConfig, err := r.SecretGenerator.GenerateSecret(&gardener.Input{
 		S: argoConfig,
 	})
 	if err != nil {
@@ -70,6 +71,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
+	secret := &v1.Secret{}
 	var message string
 
 	// Generate a new secret
@@ -79,7 +81,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if errors.IsNotFound(err) {
 			message = fmt.Sprintf("Generate new secret %s/%s", req.Namespace, argoConfig.Spec.Shoot)
 			reqLogger.Info(message)
-			if err = r.Client.Create(ctx, secret); err != nil {
+			if err = r.Client.Create(ctx, newConfig); err != nil {
 				reqLogger.Info("unable to create secret - try reconciling")
 				return ctrl.Result{}, err
 			}
@@ -92,6 +94,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// update the secret
 		message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoConfig.Spec.Shoot)
 		reqLogger.Info(message)
+		secret.Data = newConfig.Data
 		if err = r.Client.Update(ctx, secret); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -119,7 +122,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if controllerutil.ContainsFinalizer(argoConfig, finalizerName) {
 			// our finalizer is present, so lets handle any external dependency
 			reqLogger.Info("Delete Secret", req.NamespacedName)
-			if err := r.Client.Delete(ctx, secret); err != nil {
+			if err := r.Client.Delete(ctx, newConfig); err != nil {
 				// if fail to delete the external dependency here, return with error
 				// so that it can be retried
 				return ctrl.Result{}, err
