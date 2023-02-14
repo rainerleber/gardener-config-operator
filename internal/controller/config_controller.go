@@ -100,6 +100,11 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		argoConfig.Status.LastUpdatedTime = &metav1.Time{Time: time.Now()}
 	}
 
+	if err := r.Client.Status().Update(ctx, argoConfig); err != nil {
+		reqLogger.Info("unable to update ArgoCDCluster secret status - try reconciling")
+		return ctrl.Result{}, err
+	}
+
 	// Finalizer
 	finalizerName := "configs.cluster.gardener/finalizer"
 
@@ -132,11 +137,6 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if err := r.Client.Update(ctx, argoConfig); err != nil {
 			return ctrl.Result{}, err
 		}
-	}
-
-	if err := r.Client.Status().Update(ctx, argoConfig); err != nil {
-		reqLogger.Info("unable to update ArgoCDCluster secret status - try reconciling")
-		return ctrl.Result{}, err
 	}
 
 	message = fmt.Sprintf("RequeueAfter: %s", argoConfig.Spec.Frequency.Duration)
