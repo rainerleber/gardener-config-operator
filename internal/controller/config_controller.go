@@ -70,42 +70,6 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	// Finalizer
-	finalizerName := "configs.cluster.gardener/finalizer"
-
-	// examine DeletionTimestamp to determine if object is under deletion
-	if argoConfig.ObjectMeta.DeletionTimestamp.IsZero() {
-		// The object is not being deleted, so if it does not have our finalizer,
-		// then lets add the finalizer and update the object. This is equivalent
-		// registering our finalizer.
-		if !controllerutil.ContainsFinalizer(argoConfig, finalizerName) {
-			controllerutil.AddFinalizer(argoConfig, finalizerName)
-			if err := r.Client.Update(ctx, argoConfig); err != nil {
-				reqLogger.Info("Update Finalizer", req.NamespacedName)
-				return ctrl.Result{}, client.IgnoreNotFound(err)
-			}
-		}
-	} else {
-		// The object is being deleted
-		if controllerutil.ContainsFinalizer(argoConfig, finalizerName) {
-			// our finalizer is present, so lets handle any external dependency
-			if err := r.Client.Delete(ctx, newConfig); err != nil {
-				reqLogger.Info("Delete Secret", req.NamespacedName)
-				// if fail to delete the external dependency here, return with error
-				// so that it can be retried
-				return ctrl.Result{}, err
-			}
-
-			// remove finalizer from the list and update it.
-			controllerutil.RemoveFinalizer(argoConfig, finalizerName)
-			if err := r.Client.Update(ctx, argoConfig); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-		// Stop reconciliation as the item is being deleted
-		return ctrl.Result{}, nil
-	}
-
 	secret := &v1.Secret{}
 	var message string
 
@@ -136,11 +100,45 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		argoConfig.Status.LastUpdatedTime = &metav1.Time{Time: time.Now()}
 	}
 
+	// Finalizer
+	finalizerName := "configs.cluster.gardener/finalizer"
+
+	// examine DeletionTimestamp to determine if object is under deletion
+	if argoConfig.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// registering our finalizer.
+		if !controllerutil.ContainsFinalizer(argoConfig, finalizerName) {
+			reqLogger.Info("Update Finalizer", req.NamespacedName)
+			controllerutil.AddFinalizer(argoConfig, finalizerName)
+			if err := r.Client.Update(ctx, argoConfig); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	} else if controllerutil.ContainsFinalizer(argoConfig, finalizerName) {
+		// The object is being deleted
+
+		// our finalizer is present, so lets handle any external dependency
+		reqLogger.Info("Delete Secret", req.NamespacedName)
+		err := r.Client.Delete(ctx, newConfig)
+		if err != nil && !errors.IsNotFound(err) {
+			// if it fail because an other reason then not present to delete the external
+			// dependency here, return with error so that it can be retried
+			return ctrl.Result{}, err
+		}
+
+		// remove finalizer from the list and update it.
+		controllerutil.RemoveFinalizer(argoConfig, finalizerName)
+		if err := r.Client.Update(ctx, argoConfig); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	if err := r.Client.Status().Update(ctx, argoConfig); err != nil {
 		reqLogger.Info("unable to update ArgoCDCluster secret status - try reconciling")
 		return ctrl.Result{}, err
-
 	}
+
 	message = fmt.Sprintf("RequeueAfter: %s", argoConfig.Spec.Frequency.Duration)
 	reqLogger.Info(message)
 	return ctrl.Result{RequeueAfter: argoConfig.Spec.Frequency.Duration}, nil
