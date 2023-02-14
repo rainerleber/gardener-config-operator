@@ -56,6 +56,12 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	//Get CRD config object
 	argoConfig := &clustergardenerv1.Config{}
 
+	// needed for first
+	err := r.Client.Get(ctx, req.NamespacedName, argoConfig)
+	if err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
 	reqLogger.Info("Generate baseline ArgoCDCluster Config from CR")
 	newConfig, err := r.SecretGenerator.GenerateSecret(&gardener.Input{
 		S: argoConfig,
@@ -80,19 +86,24 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				return ctrl.Result{}, err
 			}
 			argoConfig.Status.Phase = "Created"
+			argoConfig.Status.LastUpdatedTime = &metav1.Time{Time: time.Now()}
 		} else {
 			return ctrl.Result{}, err
 		}
 	} else {
 		// update the secret
-		message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoConfig.Spec.Shoot)
-		reqLogger.Info(message)
-		secret.Data = newConfig.Data
-		if err = r.Client.Update(ctx, secret); err != nil {
-			return ctrl.Result{}, err
+		timeNow := &metav1.Time{Time: time.Now().Add(time.Duration(+1) * time.Minute)}
+		nextReconiling := argoConfig.Status.LastUpdatedTime.Add(argoConfig.Spec.Frequency.Duration)
+		if timeNow.After(nextReconiling) {
+			message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoConfig.Spec.Shoot)
+			reqLogger.Info(message)
+			secret.Data = newConfig.Data
+			if err = r.Client.Update(ctx, secret); err != nil {
+				return ctrl.Result{}, err
+			}
+			argoConfig.Status.Phase = "Updated"
+			argoConfig.Status.LastUpdatedTime = timeNow
 		}
-		argoConfig.Status.Phase = "Updated"
-		argoConfig.Status.LastUpdatedTime = &metav1.Time{Time: time.Now()}
 	}
 
 	// Finalizer
