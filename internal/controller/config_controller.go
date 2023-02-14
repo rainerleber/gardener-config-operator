@@ -92,18 +92,14 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	} else {
 		// update the secret
-		timeNow := &metav1.Time{Time: time.Now().Add(time.Duration(+1) * time.Minute)}
-		nextReconiling := argoConfig.Status.LastUpdatedTime.Add(argoConfig.Spec.Frequency.Duration)
-		if timeNow.After(nextReconiling) {
-			message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoConfig.Spec.Shoot)
-			reqLogger.Info(message)
-			secret.Data = newConfig.Data
-			if err = r.Client.Update(ctx, secret); err != nil {
-				return ctrl.Result{}, err
-			}
-			argoConfig.Status.Phase = "Updated"
-			argoConfig.Status.LastUpdatedTime = timeNow
+		message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoConfig.Spec.Shoot)
+		reqLogger.Info(message)
+		secret.Data = newConfig.Data
+		if err = r.Client.Update(ctx, secret); err != nil {
+			return ctrl.Result{}, err
 		}
+		argoConfig.Status.Phase = "Updated"
+		argoConfig.Status.LastUpdatedTime = &metav1.Time{Time: time.Now()}
 	}
 
 	// Finalizer
