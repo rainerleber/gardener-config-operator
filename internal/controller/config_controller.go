@@ -149,12 +149,12 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if err := r.Client.Update(ctx, argoCrConfig); err != nil {
 			return ctrl.Result{}, err
 		}
+
+		return ctrl.Result{}, nil
 	}
 
-	if argoCrConfig.ObjectMeta.DeletionTimestamp.IsZero() {
-		message = fmt.Sprintf("RequeueAfter: %s", argoCrConfig.Spec.Frequency.Duration)
-		reqLogger.Info(message)
-	}
+	message = fmt.Sprintf("RequeueAfter: %s", argoCrConfig.Spec.Frequency.Duration)
+	reqLogger.Info(message)
 	return ctrl.Result{RequeueAfter: argoCrConfig.Spec.Frequency.Duration}, nil
 }
 
