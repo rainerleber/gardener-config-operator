@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -61,25 +60,23 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	tempSecret := &v1.Secret{}
+	// request secret with tokens
+	secret, err := r.SecretGenerator.GenerateSecret(&gardener.Input{
+		S: argoCrdConfig,
+	})
+	if err != nil {
+		reqLogger.Error(err, "unable to generate secret")
+		return ctrl.Result{}, err
+	}
 	var message string
 
 	// Generate a new secret
 	// Logic: if client.get produce error no secret is present
 	// if the error is "not found" create a secret
-	if err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: argoCrdConfig.Spec.Shoot}, tempSecret); err != nil {
+	if err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: argoCrdConfig.Spec.Shoot}, secret); err != nil {
 		if errors.IsNotFound(err) {
 			message = fmt.Sprintf("Generate new Remote Cluster secret %s/%s", req.Namespace, argoCrdConfig.Spec.Shoot)
 			reqLogger.Info(message)
-
-			// request secret with tokens
-			secret, err := r.SecretGenerator.GenerateSecret(&gardener.Input{
-				S: argoCrdConfig,
-			})
-			if err != nil {
-				reqLogger.Error(err, "unable to generate secret")
-				return ctrl.Result{}, err
-			}
 
 			if err = r.Client.Create(ctx, secret); err != nil {
 				reqLogger.Info("unable to Create secret - try reconciling")
@@ -95,14 +92,6 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		timeNow := &metav1.Time{Time: time.Now().Add(time.Duration(+1) * time.Minute)}
 		nextReconiling := argoCrdConfig.Status.LastUpdatedTime.Add(argoCrdConfig.Spec.Frequency.Duration)
 		if timeNow.After(nextReconiling) {
-			// request secret with tokens
-			secret, err := r.SecretGenerator.GenerateSecret(&gardener.Input{
-				S: argoCrdConfig,
-			})
-			if err != nil {
-				reqLogger.Error(err, "unable to generate Remote Cluster secret")
-				return ctrl.Result{}, err
-			}
 			message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoCrdConfig.Spec.Shoot)
 			reqLogger.Info(message)
 			if err = r.Client.Update(ctx, secret); err != nil {
@@ -130,7 +119,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	} else if controllerutil.ContainsFinalizer(argoCrdConfig, finalizerName) {
 		// The object is being deleted
 		// our finalizer is present, so lets handle any external dependency
-		err := r.Client.Delete(ctx, tempSecret)
+		err := r.Client.Delete(ctx, secret)
 		if err != nil && !errors.IsNotFound(err) {
 			// if it fail because an other reason then not present to delete the external
 			// dependency here, return with error so that it can be retried
