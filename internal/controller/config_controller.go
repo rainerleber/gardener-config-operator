@@ -74,7 +74,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				S: argoCrConfig,
 			})
 			if err != nil {
-				reqLogger.Error(err, "not able to generate secret")
+				reqLogger.Error(err, "unable to generate secret")
 				return ctrl.Result{}, err
 			}
 
@@ -102,7 +102,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				S: argoCrConfig,
 			})
 			if err != nil {
-				reqLogger.Error(err, "not able to generate secret")
+				reqLogger.Error(err, "unable to generate secret")
 				return ctrl.Result{}, err
 			}
 
@@ -149,7 +149,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if err := r.Client.Update(ctx, argoCrConfig); err != nil {
 			return ctrl.Result{}, err
 		}
-
+		reqLogger.Info("CR Deleted")
 		return ctrl.Result{}, nil
 	}
 
