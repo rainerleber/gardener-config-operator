@@ -27,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	clustergardenerv1 "cluster.gardener/config/api/v1"
@@ -118,40 +117,43 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}
 
+	if err := r.Client.Status().Update(ctx, argoCrConfig); err != nil {
+		reqLogger.Info("unable to update ArgoCDCluster secret status - try reconciling")
+		return ctrl.Result{}, err
+	}
+
 	// Finalizer
-	finalizerName := "configs.cluster.gardener/finalizer"
+	finalizerName := []string{"configs.cluster.gardener/finalizer"}
 
 	// examine DeletionTimestamp to determine if object is under deletion
 	if argoCrConfig.ObjectMeta.DeletionTimestamp.IsZero() {
 		// The object is not being deleted, so if it does not have our finalizer,
 		// then lets add the finalizer and update the object. This is equivalent
 		// registering our finalizer.
-		if !controllerutil.ContainsFinalizer(argoCrConfig, finalizerName) {
-			controllerutil.AddFinalizer(argoCrConfig, finalizerName)
+		if argoCrConfig.ObjectMeta.Finalizers == nil {
+			argoCrConfig.ObjectMeta.Finalizers = finalizerName
 			if err := r.Client.Update(ctx, argoCrConfig); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
-	} else if controllerutil.ContainsFinalizer(argoCrConfig, finalizerName) {
-		// The object is being deleted
-		// our finalizer is present, so lets handle any external dependency
-		err := r.Client.Delete(ctx, referenceSecret)
-		if err != nil && !errors.IsNotFound(err) {
-			// if it fail because an other reason then not present to delete the external
-			// dependency here, return with error so that it can be retried
-			return ctrl.Result{}, err
-		}
+	} else {
+		// seperate if to prevent evaluation for each run
+		if argoCrConfig.ObjectMeta.Finalizers != nil {
+			// The object is being deleted
+			// our finalizer is present, so lets handle any external dependency
+			err := r.Client.Delete(ctx, referenceSecret)
+			if err != nil && !errors.IsNotFound(err) {
+				// if it fail because an other reason then not present to delete the external
+				// dependency here, return with error so that it can be retried
+				return ctrl.Result{}, err
+			}
 
-		// remove finalizer from the list and update it.
-		controllerutil.RemoveFinalizer(argoCrConfig, finalizerName)
-		if err := r.Client.Update(ctx, argoCrConfig); err != nil {
-			return ctrl.Result{}, err
+			// remove finalizer from the list and update it.
+			argoCrConfig.ObjectMeta.Finalizers = []string{}
+			if err := r.Client.Update(ctx, argoCrConfig); err != nil {
+				return ctrl.Result{}, err
+			}
 		}
-	}
-
-	if err := r.Client.Status().Update(ctx, argoCrConfig); err != nil {
-		reqLogger.Info("unable to update ArgoCDCluster secret status - try reconciling")
-		return ctrl.Result{}, err
 	}
 
 	message = fmt.Sprintf("RequeueAfter: %s", argoCrConfig.Spec.Frequency.Duration)
