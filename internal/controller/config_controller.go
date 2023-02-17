@@ -60,8 +60,6 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	reqLogger.Info("Generate baseline ArgoCDCluster Config from CR")
-
 	referenceSecret := &v1.Secret{}
 	var message string
 
@@ -136,28 +134,27 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				return ctrl.Result{}, err
 			}
 		}
-	} else {
-		// seperate if to prevent evaluation for each run
-		if argoCrConfig.ObjectMeta.Finalizers != nil {
-			// The object is being deleted
-			// our finalizer is present, so lets handle any external dependency
-			err := r.Client.Delete(ctx, referenceSecret)
-			if err != nil && !errors.IsNotFound(err) {
-				// if it fail because an other reason then not present to delete the external
-				// dependency here, return with error so that it can be retried
-				return ctrl.Result{}, err
-			}
+	} else if !argoCrConfig.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is being deleted
+		// our finalizer is present, so lets handle any external dependency
+		err := r.Client.Delete(ctx, referenceSecret)
+		if err != nil && !errors.IsNotFound(err) {
+			// if it fail because an other reason then not present to delete the external
+			// dependency here, return with error so that it can be retried
+			return ctrl.Result{}, err
+		}
 
-			// remove finalizer from the list and update it.
-			argoCrConfig.ObjectMeta.Finalizers = []string{}
-			if err := r.Client.Update(ctx, argoCrConfig); err != nil {
-				return ctrl.Result{}, err
-			}
+		// remove finalizer from the list and update it.
+		argoCrConfig.ObjectMeta.Finalizers = []string{}
+		if err := r.Client.Update(ctx, argoCrConfig); err != nil {
+			return ctrl.Result{}, err
 		}
 	}
 
-	message = fmt.Sprintf("RequeueAfter: %s", argoCrConfig.Spec.Frequency.Duration)
-	reqLogger.Info(message)
+	if argoCrConfig.ObjectMeta.DeletionTimestamp.IsZero() {
+		message = fmt.Sprintf("RequeueAfter: %s", argoCrConfig.Spec.Frequency.Duration)
+		reqLogger.Info(message)
+	}
 	return ctrl.Result{RequeueAfter: argoCrConfig.Spec.Frequency.Duration}, nil
 }
 
