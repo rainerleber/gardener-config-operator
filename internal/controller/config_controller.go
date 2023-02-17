@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -54,54 +53,52 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	reqLogger.Info("Reconciling ArgoCDCluster Secret")
 
 	//Get CRD config object
-	argoConfig := &clustergardenerv1.Config{}
+	argoCrdConfig := &clustergardenerv1.Config{}
 
-	err := r.Client.Get(ctx, req.NamespacedName, argoConfig)
+	err := r.Client.Get(ctx, req.NamespacedName, argoCrdConfig)
 	if err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	reqLogger.Info("Generate baseline ArgoCDCluster Config from CR")
-	newConfig, err := r.SecretGenerator.GenerateSecret(&gardener.Input{
-		S: argoConfig,
+	secret, err := r.SecretGenerator.GenerateSecret(&gardener.Input{
+		S: argoCrdConfig,
 	})
 	if err != nil {
 		reqLogger.Error(err, "not able to generate secret")
 		return ctrl.Result{}, err
 	}
 
-	secret := &v1.Secret{}
 	var message string
 
 	// Generate a new secret
 	// Logic: if client.get produce error no secret is present
 	// if the error is "not found" create a secret
-	if err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: argoConfig.Spec.Shoot}, secret); err != nil {
+	if err = r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: argoCrdConfig.Spec.Shoot}, secret); err != nil {
 		if errors.IsNotFound(err) {
-			message = fmt.Sprintf("Generate new ArgoCDCluster secret %s/%s", req.Namespace, argoConfig.Spec.Shoot)
+			message = fmt.Sprintf("Generate new ArgoCDCluster secret %s/%s", req.Namespace, argoCrdConfig.Spec.Shoot)
 			reqLogger.Info(message)
-			if err = r.Client.Create(ctx, newConfig); err != nil {
+			if err = r.Client.Create(ctx, secret); err != nil {
 				reqLogger.Info("unable to Create secret - try reconciling")
 				return ctrl.Result{}, err
 			}
-			argoConfig.Status.Phase = "Created"
-			argoConfig.Status.LastUpdatedTime = &metav1.Time{Time: time.Now()}
+			argoCrdConfig.Status.Phase = "Created"
+			argoCrdConfig.Status.LastUpdatedTime = &metav1.Time{Time: time.Now()}
 		} else {
 			return ctrl.Result{}, err
 		}
 	} else {
 		// update the secret
 		timeNow := &metav1.Time{Time: time.Now().Add(time.Duration(+1) * time.Minute)}
-		nextReconiling := argoConfig.Status.LastUpdatedTime.Add(argoConfig.Spec.Frequency.Duration)
+		nextReconiling := argoCrdConfig.Status.LastUpdatedTime.Add(argoCrdConfig.Spec.Frequency.Duration)
 		if timeNow.After(nextReconiling) {
-			message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoConfig.Spec.Shoot)
+			message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoCrdConfig.Spec.Shoot)
 			reqLogger.Info(message)
-			secret.Data = newConfig.Data
 			if err = r.Client.Update(ctx, secret); err != nil {
 				return ctrl.Result{}, err
 			}
-			argoConfig.Status.Phase = "Updated"
-			argoConfig.Status.LastUpdatedTime = timeNow
+			argoCrdConfig.Status.Phase = "Updated"
+			argoCrdConfig.Status.LastUpdatedTime = timeNow
 		}
 	}
 
@@ -109,20 +106,20 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	finalizerName := "configs.cluster.gardener/finalizer"
 
 	// examine DeletionTimestamp to determine if object is under deletion
-	if argoConfig.ObjectMeta.DeletionTimestamp.IsZero() {
+	if argoCrdConfig.ObjectMeta.DeletionTimestamp.IsZero() {
 		// The object is not being deleted, so if it does not have our finalizer,
 		// then lets add the finalizer and update the object. This is equivalent
 		// registering our finalizer.
-		if !controllerutil.ContainsFinalizer(argoConfig, finalizerName) {
-			controllerutil.AddFinalizer(argoConfig, finalizerName)
-			if err := r.Client.Update(ctx, argoConfig); err != nil {
+		if !controllerutil.ContainsFinalizer(argoCrdConfig, finalizerName) {
+			controllerutil.AddFinalizer(argoCrdConfig, finalizerName)
+			if err := r.Client.Update(ctx, argoCrdConfig); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
-	} else if controllerutil.ContainsFinalizer(argoConfig, finalizerName) {
+	} else if controllerutil.ContainsFinalizer(argoCrdConfig, finalizerName) {
 		// The object is being deleted
 		// our finalizer is present, so lets handle any external dependency
-		err := r.Client.Delete(ctx, newConfig)
+		err := r.Client.Delete(ctx, secret)
 		if err != nil && !errors.IsNotFound(err) {
 			// if it fail because an other reason then not present to delete the external
 			// dependency here, return with error so that it can be retried
@@ -130,20 +127,20 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 
 		// remove finalizer from the list and update it.
-		controllerutil.RemoveFinalizer(argoConfig, finalizerName)
-		if err := r.Client.Update(ctx, argoConfig); err != nil {
+		controllerutil.RemoveFinalizer(argoCrdConfig, finalizerName)
+		if err := r.Client.Update(ctx, argoCrdConfig); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
-	if err := r.Client.Status().Update(ctx, argoConfig); err != nil {
+	if err := r.Client.Status().Update(ctx, argoCrdConfig); err != nil {
 		reqLogger.Info("unable to update ArgoCDCluster secret status - try reconciling")
 		return ctrl.Result{}, err
 	}
 
-	message = fmt.Sprintf("RequeueAfter: %s", argoConfig.Spec.Frequency.Duration)
+	message = fmt.Sprintf("RequeueAfter: %s", argoCrdConfig.Spec.Frequency.Duration)
 	reqLogger.Info(message)
-	return ctrl.Result{RequeueAfter: argoConfig.Spec.Frequency.Duration}, nil
+	return ctrl.Result{RequeueAfter: argoCrdConfig.Spec.Frequency.Duration}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
