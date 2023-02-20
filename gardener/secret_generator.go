@@ -42,7 +42,7 @@ func (sg *DefaultSecretGenerator) GenerateSecret(input *Input) (*v1.Secret, erro
 
 	if input.S.Spec.DesiredOutput == "ArgoCD" {
 		// caData, clusterAddress, certData, keyData
-		argoConfig := fmt.Sprintf(`{"tlsClientConfig": {"caData": %s, "certData": %s, "keyData": %s}}`, returendData[0], returendData[2], returendData[3])
+		argoConfig := fmt.Sprintf(`{"tlsClientConfig": {"caData": "%s", "certData": "%s", "keyData": "%s"}}`, returendData[0], returendData[2], returendData[3])
 
 		byteConfig := []byte(argoConfig)
 		byteClusterAddress := []byte(returendData[1])
