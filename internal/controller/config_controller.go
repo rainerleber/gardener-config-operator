@@ -91,30 +91,25 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return ctrl.Result{}, err
 		}
 	} else {
-		// update the secret, add 2 Minutes to make sure token is never deprecated
-		timeNow := &metav1.Time{Time: time.Now().Add(time.Duration(+2) * time.Minute)}
-		nextReconiling := argoCrConfig.Status.LastUpdatedTime.Add(argoCrConfig.Spec.Frequency.Duration)
-		if timeNow.After(nextReconiling) {
-			message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoCrConfig.Spec.Shoot)
-			reqLogger.Info(message)
+		message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoCrConfig.Spec.Shoot)
+		reqLogger.Info(message)
 
-			// Generate new Secret with Token
-			newSecret, err := r.SecretGenerator.GenerateSecret(&gardener.Input{
-				S: argoCrConfig,
-			})
-			if err != nil {
-				reqLogger.Error(err, "Unable to refresh secret")
-				return ctrl.Result{}, err
-			}
-
-			referenceSecret.Data = newSecret.Data
-			if err = r.Client.Update(ctx, referenceSecret); err != nil {
-				return ctrl.Result{}, err
-			}
-			changed = true
-			argoCrConfig.Status.Phase = "Updated"
-			argoCrConfig.Status.LastUpdatedTime = timeNow
+		// Generate new Secret with Token
+		newSecret, err := r.SecretGenerator.GenerateSecret(&gardener.Input{
+			S: argoCrConfig,
+		})
+		if err != nil {
+			reqLogger.Error(err, "Unable to refresh secret")
+			return ctrl.Result{}, err
 		}
+
+		referenceSecret.Data = newSecret.Data
+		if err = r.Client.Update(ctx, referenceSecret); err != nil {
+			return ctrl.Result{}, err
+		}
+		changed = true
+		argoCrConfig.Status.Phase = "Updated"
+		argoCrConfig.Status.LastUpdatedTime = &metav1.Time{Time: time.Now()}
 	}
 
 	if err := r.Client.Status().Update(ctx, argoCrConfig); err != nil {
