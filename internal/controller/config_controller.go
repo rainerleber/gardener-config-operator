@@ -91,9 +91,10 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return ctrl.Result{}, err
 		}
 	} else {
-		// update the secret, add 2 Minutes to make sure token is never deprecated
-		timeNow := &metav1.Time{Time: time.Now().Add(time.Duration(+2) * time.Minute)}
-		nextReconiling := argoCrConfig.Status.LastUpdatedTime.Add(argoCrConfig.Spec.Frequency.Duration)
+		// update the secret, add 1 Minutes to make sure token is never deprecated
+		// and prevent redundant runs
+		timeNow := &metav1.Time{Time: time.Now()}
+		nextReconiling := argoCrConfig.Status.LastUpdatedTime.Add(time.Duration(+1) * time.Minute)
 		if timeNow.After(nextReconiling) {
 			message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoCrConfig.Spec.Shoot)
 			reqLogger.Info(message)
