@@ -43,10 +43,24 @@ func (sg *DefaultSecretGenerator) GenerateSecret(input *Input) (*v1.Secret, erro
 	}
 
 	if input.S.Spec.DesiredOutput == "ArgoCD" {
+
+		// build labels if input is not empty
+		labels := map[string]string{
+			"argocd.argoproj.io/secret-type": "cluster",
+			"clustername":                    input.S.Spec.Shoot,
+		}
+
+		if input.S.Spec.Stage != "" {
+			labels["stage"] = input.S.Spec.Stage
+		}
+		if input.S.Spec.Stage != "" {
+			labels["cloudprovider"] = input.S.Spec.CloudProvider
+		}
+
 		// caData, clusterAddress, certData, keyData
 		argoConfig := fmt.Sprintf(`{"tlsClientConfig": {"caData": "%s", "certData": "%s", "keyData": "%s"}}`, returendData[0], returendData[2], returendData[3])
-
 		byteConfig := []byte(argoConfig)
+
 		byteClusterAddress := []byte(returendData[1])
 		byteShoot := []byte(input.S.Spec.Shoot)
 
@@ -55,9 +69,7 @@ func (sg *DefaultSecretGenerator) GenerateSecret(input *Input) (*v1.Secret, erro
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: input.S.ObjectMeta.Namespace,
 				Name:      input.S.Spec.Shoot,
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-				},
+				Labels:    labels,
 			},
 			Data: map[string][]byte{
 				"name":   byteShoot,

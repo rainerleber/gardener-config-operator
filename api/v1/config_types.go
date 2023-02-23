@@ -32,6 +32,12 @@ type ConfigSpec struct {
 	Project string `json:"project"`
 	// The Name of the shoot cluster to generate a secret for
 	Shoot string `json:"shoot"`
+	// +kubebuilder:default=""
+	// The stage of the cluster
+	Stage string `json:"stage,omitempty"`
+	// +kubebuilder:default=""
+	// The Cloudprovider where the cluster runs
+	CloudProvider string `json:"cloudprovider,omitempty"`
 	// The Frequency to Generate new Tokens
 	Frequency *metav1.Duration `json:"frequency"`
 }

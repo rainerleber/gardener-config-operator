@@ -34,6 +34,10 @@ spec:
           spec:
             description: ConfigSpec defines the desired state of Config
             properties:
+              cloudprovider:
+                default: ""
+                description: The Cloudprovider where the cluster runs
+                type: string
               desiredoutput:
                 description: Wether output is processed as argocd secret object or
                   plain secret
@@ -49,6 +53,10 @@ spec:
                 type: string
               shoot:
                 description: The Name of the shoot cluster to generate a secret for
+                type: string
+              stage:
+                default: ""
+                description: The stage of the cluster
                 type: string
             required:
             - desiredoutput
