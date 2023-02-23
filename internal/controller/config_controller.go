@@ -95,6 +95,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// and prevent redundant runs
 		timeNow := &metav1.Time{Time: time.Now()}
 		nextReconiling := argoCrConfig.Status.LastUpdatedTime.Add(time.Duration(+1) * time.Minute)
+		message = fmt.Sprintf("Next update time %s", nextReconiling)
 		if timeNow.After(nextReconiling) {
 			message = fmt.Sprintf("Update config %s/%s", req.Namespace, argoCrConfig.Spec.Shoot)
 			reqLogger.Info(message)
