@@ -161,7 +161,8 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		message = fmt.Sprintf("RequeueAfter: %s", argoCrConfig.Spec.Frequency.Duration)
 		reqLogger.Info(message)
 	}
-	return ctrl.Result{RequeueAfter: argoCrConfig.Spec.Frequency.Duration}, nil
+	// substract 1 minute to prevent depreaction gap
+	return ctrl.Result{RequeueAfter: (argoCrConfig.Spec.Frequency.Duration - (time.Duration(-1) * time.Minute))}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
