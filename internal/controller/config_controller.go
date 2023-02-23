@@ -162,7 +162,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		reqLogger.Info(message)
 	}
 	// substract 1 minute to prevent depreaction gap
-	return ctrl.Result{RequeueAfter: (argoCrConfig.Spec.Frequency.Duration - (time.Duration(-1) * time.Minute))}, nil
+	return ctrl.Result{RequeueAfter: (argoCrConfig.Spec.Frequency.Duration)}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

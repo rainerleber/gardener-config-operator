@@ -3,6 +3,7 @@ package gardener
 import (
 	"encoding/base64"
 	"fmt"
+	"time"
 
 	gardener "cluster.gardener/config/api/v1"
 	v1 "k8s.io/api/core/v1"
@@ -34,7 +35,8 @@ func NewDefaultSecretGenerator(r ConfigRetriever) *DefaultSecretGenerator {
 
 // generate a secret to define declarative a managed ArgoCD Cluster
 func (sg *DefaultSecretGenerator) GenerateSecret(input *Input) (*v1.Secret, error) {
-	frequency := input.S.Spec.Frequency.Duration.Seconds()
+	// add 60 Seconds concurrency to prevent reconciling gaps
+	frequency := input.S.Spec.Frequency.Duration.Seconds() + (time.Duration(60) * time.Second).Seconds()
 	returendData, err := sg.r.GetConfig(input.S.Spec.Project, input.S.Spec.Shoot, int(frequency), input.S.Spec.DesiredOutput)
 	if err != nil {
 		return nil, err
