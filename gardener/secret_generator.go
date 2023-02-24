@@ -25,17 +25,6 @@ type Input struct {
 	S *gardener.Config
 }
 
-// type SecretGenerator interface {
-// 	GenerateSecret(input *Input) (*v1.Secret, error)
-// }
-
-// type DefaultSecretGenerator struct {
-// }
-
-// func NewDefaultSecretGenerator() *DefaultSecretGenerator {
-// 	return &DefaultSecretGenerator{}
-// }
-
 // generate a secret to define declarative a managed ArgoCD Cluster
 func GenerateSecret(input *Input) (*v1.Secret, error) {
 	// add 60 Seconds concurrency to prevent reconciling gaps

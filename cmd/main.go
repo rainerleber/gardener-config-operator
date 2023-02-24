@@ -114,7 +114,6 @@ func main() {
 	if err = (&controller.ConfigReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		// SecretGenerator: gardener.NewDefaultSecretGenerator(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Config")
 		os.Exit(1)
