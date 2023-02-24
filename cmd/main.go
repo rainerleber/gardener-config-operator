@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	clustergardenerv1 "cluster.gardener/config/api/v1"
+	"cluster.gardener/config/gardener"
 	"cluster.gardener/config/internal/controller"
 	//+kubebuilder:scaffold:imports
 )
@@ -112,8 +113,9 @@ func main() {
 	}
 
 	if err = (&controller.ConfigReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		SecretGenerator: gardener.NewDefaultSecretGenerator(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Config")
 		os.Exit(1)
