@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -15,10 +14,17 @@ import (
 
 // logic for the controller
 func GetConfig(project string, shoot string, secondsToExpiration int, output string) ([]string, error) {
-	newConfig := getClusterConfig(project, shoot, secondsToExpiration)
+	newConfig, err := getClusterConfig(project, shoot, secondsToExpiration)
+	if err != nil {
+		return nil, fmt.Errorf("something went wrong get the shoot cluster config, check if cluster %s exsists\n %s", shoot, err)
+	}
 	if output == "ArgoCD" {
-		parsed := yamlParse(newConfig)
-		return parsed, nil
+		parsed, err := yamlParse(newConfig)
+		if err != nil {
+			return nil, err
+		} else {
+			return parsed, nil
+		}
 	} else {
 		return []string{newConfig}, nil
 	}
@@ -85,24 +91,24 @@ type KubeConfig struct {
 }
 
 // generate the kubeconfig out of the gardener seed cluster
-func getClusterConfig(project string, shoot string, expiration int) string {
+func getClusterConfig(project string, shoot string, expiration int) (string, error) {
 	kubeconfig := os.Getenv(kubeConfigEnvName)
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
-		log.Println("Error in the current context.\n[ERROR] -", err)
+		return "", fmt.Errorf("error in the current context.\n%s -", err)
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		log.Println("Error on clientset.\n[ERROR] -", err)
+		return "", fmt.Errorf("error on clientset.\n%s -", err)
 	}
 
 	expire := ConfigSpec{ExpirationSeconds: expiration}
 	GeneratedConfig := GenerateConfig{ApiVersion: "authentication.gardener.cloud/v1alpha1", Kind: "AdminKubeconfigRequest", Spec: expire}
 	json, err := json.Marshal(GeneratedConfig)
 	if err != nil {
-		log.Println("Error on response.\n[ERROR] -", err)
+		return "", fmt.Errorf("error on response.\n%s -", err)
 	}
 
 	resp, err := clientset.RESTClient().
@@ -111,25 +117,26 @@ func getClusterConfig(project string, shoot string, expiration int) string {
 		Body(json).
 		DoRaw(context.TODO())
 	if err != nil {
+
 		fmt.Println(string(resp), err)
 	}
 
 	data := JsonResponse{}
 	yaml.Unmarshal(resp, &data)
 
-	return fmt.Sprintf(data.Status.Kubeconfig)
+	return fmt.Sprintf(data.Status.Kubeconfig), nil
 }
 
 // parse the returned kubeconfig
-func yamlParse(encodedYaml string) []string {
+func yamlParse(encodedYaml string) ([]string, error) {
 	sDec, err := base64.StdEncoding.DecodeString(encodedYaml)
 	if err != nil {
-		log.Println("Error on YAML Encode.\n[ERROR] -", err)
+		return nil, fmt.Errorf("error on YAML Encode.\n%s -", err)
 	}
 	var kubeconfig KubeConfig
 	err = yaml.Unmarshal(sDec, &kubeconfig)
 	if err != nil {
-		log.Println("Error on YAML Unmarshaling.\n[ERROR] -", err)
+		return nil, fmt.Errorf("error on YAML Unmarshaling.\n%s -", err)
 	}
 
 	usedContext := kubeconfig.CurrentContext
@@ -148,5 +155,5 @@ func yamlParse(encodedYaml string) []string {
 		certData = fmt.Sprintf(e.User.ClientCert)
 		keyData = fmt.Sprintf(e.User.ClientKey)
 	}
-	return []string{caData, clusterAddress, certData, keyData}
+	return []string{caData, clusterAddress, certData, keyData}, nil
 }
