@@ -29,15 +29,27 @@ type SecretGenerator interface {
 	GenerateSecret(input *Input) (*v1.Secret, error)
 }
 
+type DefaultSecretGenerator struct {
+}
+
+func NewDefaultSecretGenerator() *DefaultSecretGenerator {
+	return &DefaultSecretGenerator{}
+}
+
 // generate a secret to define declarative a managed ArgoCD Cluster
-func GenerateSecret(input *Input) (*v1.Secret, error) {
+func (sg *DefaultSecretGenerator) GenerateSecret(input *Input) (*v1.Secret, error) {
 	// add 60 Seconds concurrency to prevent reconciling gaps
 	frequency := input.S.Spec.Frequency.Duration.Seconds() + (time.Duration(60) * time.Second).Seconds()
+
 	returendInfo, err := GetInfo(input.S.Spec.Project, input.S.Spec.Shoot)
 	if err != nil {
 		return nil, err
 	}
-	returendData := GetConfig(input.S.Spec.Project, input.S.Spec.Shoot, int(frequency), input.S.Spec.DesiredOutput)
+
+	returendData, err := GetConfig(input.S.Spec.Project, input.S.Spec.Shoot, int(frequency), input.S.Spec.DesiredOutput)
+	if err != nil {
+		return nil, err
+	}
 
 	if input.S.Spec.DesiredOutput == "ArgoCD" {
 

@@ -7,22 +7,20 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"gopkg.in/yaml.v3"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 // logic for the controller
-func GetConfig(project string, shoot string, secondsToExpiration int, output string) []string {
+func GetConfig(project string, shoot string, secondsToExpiration int, output string) ([]string, error) {
 	newConfig := getClusterConfig(project, shoot, secondsToExpiration)
 	if output == "ArgoCD" {
 		parsed := yamlParse(newConfig)
-		return parsed
+		return parsed, nil
 	} else {
-		return []string{newConfig}
+		return []string{newConfig}, nil
 	}
 }
 
@@ -84,31 +82,6 @@ type KubeConfig struct {
 	Contexts       []Contexts `yaml:"contexts"`
 	Users          []Users    `yaml:"users"`
 	CurrentContext string     `yaml:"current-context"`
-}
-
-func checkShootClusterAvailability(project string, shoot string) bool {
-	kubeconfig := os.Getenv(kubeConfigEnvName)
-	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	if err != nil {
-		log.Println("Error on response.\n[ERROR] -", err)
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		log.Println("Error on response.\n[ERROR] -", err)
-	}
-
-	secrets, err := clientset.CoreV1().Secrets(fmt.Sprintf("garden-%s", project)).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		log.Println("Error on response.\n[ERROR] -", err)
-	}
-	for _, secret := range secrets.Items {
-		if strings.Contains(secret.Name, shoot) {
-			return true
-		}
-	}
-	return false
 }
 
 // generate the kubeconfig out of the gardener seed cluster

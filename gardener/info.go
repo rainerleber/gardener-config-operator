@@ -13,7 +13,7 @@ import (
 func GetInfo(project string, shoot string) ([]string, error) {
 	purposeRaw, provider, err := getInfo(project, shoot)
 	if err != nil {
-		return nil, fmt.Errorf(fmt.Sprintf("something went wrong getting the shoot cluster info, check if cluster %s exsists", shoot))
+		return nil, fmt.Errorf(fmt.Sprintf("something went wrong get shoot cluster info, check if cluster %s exsists", shoot))
 	}
 	purpose := purposeShort(purposeRaw)
 	return []string{purpose, provider}, nil
