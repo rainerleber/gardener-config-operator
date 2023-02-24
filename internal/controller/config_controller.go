@@ -37,8 +37,7 @@ import (
 // ConfigReconciler reconciles a Config object
 type ConfigReconciler struct {
 	client.Client
-	Scheme          *runtime.Scheme
-	SecretGenerator gardener.SecretGenerator
+	Scheme *runtime.Scheme
 }
 
 //+kubebuilder:rbac:groups=cluster.gardener,resources=configs,verbs=get;list;watch;create;update;patch;delete
@@ -70,7 +69,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if errors.IsNotFound(err) {
 
 			// Generate new Secret with Token
-			newSecret, err := r.SecretGenerator.GenerateSecret(&gardener.Input{
+			newSecret, err := gardener.GenerateSecret(&gardener.Input{
 				S: argoCrConfig,
 			})
 			if err != nil {
@@ -100,7 +99,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			reqLogger.Info(message)
 
 			// Generate new Secret with Token
-			newSecret, err := r.SecretGenerator.GenerateSecret(&gardener.Input{
+			newSecret, err := gardener.GenerateSecret(&gardener.Input{
 				S: argoCrConfig,
 			})
 			if err != nil {

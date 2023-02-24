@@ -25,19 +25,19 @@ type Input struct {
 	S *gardener.Config
 }
 
-type SecretGenerator interface {
-	GenerateSecret(input *Input) (*v1.Secret, error)
-}
+// type SecretGenerator interface {
+// 	GenerateSecret(input *Input) (*v1.Secret, error)
+// }
 
-type DefaultSecretGenerator struct {
-}
+// type DefaultSecretGenerator struct {
+// }
 
-func NewDefaultSecretGenerator() *DefaultSecretGenerator {
-	return &DefaultSecretGenerator{}
-}
+// func NewDefaultSecretGenerator() *DefaultSecretGenerator {
+// 	return &DefaultSecretGenerator{}
+// }
 
 // generate a secret to define declarative a managed ArgoCD Cluster
-func (sg *DefaultSecretGenerator) GenerateSecret(input *Input) (*v1.Secret, error) {
+func GenerateSecret(input *Input) (*v1.Secret, error) {
 	// add 60 Seconds concurrency to prevent reconciling gaps
 	frequency := input.S.Spec.Frequency.Duration.Seconds() + (time.Duration(60) * time.Second).Seconds()
 
