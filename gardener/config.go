@@ -16,36 +16,15 @@ import (
 )
 
 // logic for the controller
-func (r *DefaultConfigRetriever) GetConfig(project string, shoot string, secondsToExpiration int, output string) ([]string, error) {
-	if checkShootClusterAvailability(project, shoot) {
-		newConfig := getClusterConfig(project, shoot, secondsToExpiration)
-		if output == "ArgoCD" {
-			parsed := yamlParse(newConfig)
-			return parsed, nil
-		} else {
-			return []string{newConfig}, nil
-		}
+func GetConfig(project string, shoot string, secondsToExpiration int, output string) []string {
+	newConfig := getClusterConfig(project, shoot, secondsToExpiration)
+	if output == "ArgoCD" {
+		parsed := yamlParse(newConfig)
+		return parsed
 	} else {
-		return nil, fmt.Errorf(fmt.Sprintf("something went wrong getting the shoot cluster config, check if cluster %s exsists", shoot))
+		return []string{newConfig}
 	}
 }
-
-type ConfigRetriever interface {
-	GetConfig(project string, shoot string, secondsToExpiration int, output string) ([]string, error)
-}
-
-type DefaultConfigRetriever struct {
-}
-
-func NewDefaultConfigRetriever() *DefaultConfigRetriever {
-	return &DefaultConfigRetriever{}
-}
-
-// constant env kubeconfig for the seed
-// could not be only KUBECONFIG because then the normal controller SVC will be overridden
-const (
-	kubeConfigEnvName = "KUBECONFIG_REMOTE"
-)
 
 // Post Body
 type ConfigSpec struct {

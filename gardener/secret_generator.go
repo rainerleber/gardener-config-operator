@@ -10,6 +10,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// constant env kubeconfig for the seed
+// could not be only KUBECONFIG because then the normal controller SVC will be overridden
+const (
+	kubeConfigEnvName = "KUBECONFIG_REMOTE"
+)
+
 var secretMeta = metav1.TypeMeta{
 	APIVersion: "v1",
 	Kind:       "Secret",
@@ -23,24 +29,15 @@ type SecretGenerator interface {
 	GenerateSecret(input *Input) (*v1.Secret, error)
 }
 
-type DefaultSecretGenerator struct {
-	r ConfigRetriever
-}
-
-func NewDefaultSecretGenerator(r ConfigRetriever) *DefaultSecretGenerator {
-	return &DefaultSecretGenerator{
-		r: r,
-	}
-}
-
 // generate a secret to define declarative a managed ArgoCD Cluster
-func (sg *DefaultSecretGenerator) GenerateSecret(input *Input) (*v1.Secret, error) {
+func GenerateSecret(input *Input) (*v1.Secret, error) {
 	// add 60 Seconds concurrency to prevent reconciling gaps
 	frequency := input.S.Spec.Frequency.Duration.Seconds() + (time.Duration(60) * time.Second).Seconds()
-	returendData, err := sg.r.GetConfig(input.S.Spec.Project, input.S.Spec.Shoot, int(frequency), input.S.Spec.DesiredOutput)
+	returendInfo, err := GetInfo(input.S.Spec.Project, input.S.Spec.Shoot)
 	if err != nil {
 		return nil, err
 	}
+	returendData := GetConfig(input.S.Spec.Project, input.S.Spec.Shoot, int(frequency), input.S.Spec.DesiredOutput)
 
 	if input.S.Spec.DesiredOutput == "ArgoCD" {
 
@@ -52,9 +49,13 @@ func (sg *DefaultSecretGenerator) GenerateSecret(input *Input) (*v1.Secret, erro
 
 		if input.S.Spec.Stage != "" {
 			labels["stage"] = input.S.Spec.Stage
+		} else {
+			labels["stage"] = returendInfo[0]
 		}
 		if input.S.Spec.Stage != "" {
 			labels["cloudprovider"] = input.S.Spec.CloudProvider
+		} else {
+			labels["cloudprovider"] = returendInfo[1]
 		}
 
 		// caData, clusterAddress, certData, keyData
