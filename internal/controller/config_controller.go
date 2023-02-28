@@ -45,6 +45,8 @@ type ConfigReconciler struct {
 //+kubebuilder:rbac:groups=customer.gardener,resources=configs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=customer.gardener,resources=configs/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="argoproj.io",resources=secrets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=appprojects,verbs=get;list;watch;create;update;patch;delete
 
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.1/pkg/reconcile
@@ -60,7 +62,6 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	referenceSecret := &v1.Secret{}
-	referenceProject := &argocd.ArgoProject{}
 
 	var message string
 	var changed bool
@@ -165,17 +166,9 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	if apiUrl != "" {
-		reqLogger.Info("Create argoProject")
-		err := r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: "un1"}, referenceProject)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-
 		project := argocd.ArgoCDProject(&argocd.Input{S: argoCrConfig}, apiUrl)
-		err = r.Client.Create(ctx, project)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
+		resp := argocd.CreateProject(project, req.Namespace)
+		reqLogger.Info(resp)
 	}
 
 	if changed {
