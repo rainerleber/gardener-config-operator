@@ -60,6 +60,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	referenceSecret := &v1.Secret{}
+	referenceProject := &argocd.ArgoProject{}
 
 	var message string
 	var changed bool
@@ -165,8 +166,11 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	if apiUrl != "" {
 		reqLogger.Info("Create argoProject")
-		referenceProject := argocd.ArgoCDProject(&argocd.Input{S: argoCrConfig}, apiUrl)
-		r.Client.Create(ctx, referenceProject)
+		project := argocd.ArgoCDProject(&argocd.Input{S: argoCrConfig}, apiUrl)
+		err := r.Create(ctx, project)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	if changed {
