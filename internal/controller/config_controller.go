@@ -60,7 +60,6 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	referenceSecret := &v1.Secret{}
-	referenceProject := &argocd.ArgoProject{}
 
 	var message string
 	var changed bool
