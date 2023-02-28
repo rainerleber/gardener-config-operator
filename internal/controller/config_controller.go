@@ -164,7 +164,6 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			// dependency here, return with error so that it can be retried
 			return ctrl.Result{}, err
 		}
-
 		argocd.DeleteProject(req.Namespace, argoCrConfig.Status.ProjectName)
 
 		// remove finalizer from the list and update it.

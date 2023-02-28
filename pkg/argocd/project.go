@@ -67,7 +67,8 @@ func DeleteProject(namespace string, projectName string) {
 	}
 	clientset.RESTClient().
 		Delete().
-		AbsPath(fmt.Sprintf("apis/argoproj.io/v1alpha1/namespaces/%s/appprojects/%s", namespace, projectName))
+		AbsPath(fmt.Sprintf("apis/argoproj.io/v1alpha1/namespaces/%s/appprojects/%s", namespace, projectName)).
+		DoRaw(context.TODO())
 
 }
 
