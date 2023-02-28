@@ -55,7 +55,25 @@ type Input struct {
 	S *customergardenerv1.Config
 }
 
-func CreateProject(project ArgoProject, namespace string) string {
+func DeleteProject(namespace string, projectName string) {
+	// creates the in-cluster config
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		panic(err.Error())
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+	clientset.RESTClient().
+		Delete().
+		AbsPath(fmt.Sprintf("apis/argoproj.io/v1alpha1/namespaces/%s/appprojects/%s", namespace, projectName))
+
+}
+
+func CreateProject(input *Input, api string) error {
+	cid := strings.Split(input.S.Spec.Shoot, "-")[1][0:3]
+	project := ArgoCDProject(cid, input.S.ObjectMeta.Namespace, api)
 
 	json, err := json.Marshal(project)
 	if err != nil {
@@ -71,17 +89,15 @@ func CreateProject(project ArgoProject, namespace string) string {
 	if err != nil {
 		panic(err.Error())
 	}
-	resp, _ := clientset.RESTClient().
+	_, err = clientset.RESTClient().
 		Post().
-		AbsPath(fmt.Sprintf("apis/argoproj.io/v1alpha1/namespaces/%s/appprojects", namespace)).
+		AbsPath(fmt.Sprintf("apis/argoproj.io/v1alpha1/namespaces/%s/appprojects", input.S.ObjectMeta.Namespace)).
 		Body(json).
 		DoRaw(context.TODO())
-	return string(resp)
+	return err
 }
 
-func ArgoCDProject(input *Input, api string) ArgoProject {
-
-	cid := strings.Split(input.S.Spec.Shoot, "-")[1][0:3]
+func ArgoCDProject(cid string, namespace string, api string) ArgoProject {
 
 	return ArgoProject{
 		APIVersion: "argoproj.io/v1alpha1",
@@ -91,7 +107,7 @@ func ArgoCDProject(input *Input, api string) ArgoProject {
 				"argocd.argoproj.io/sync-wave": "0",
 			},
 			Name:      cid,
-			Namespace: input.S.ObjectMeta.Namespace,
+			Namespace: namespace,
 		},
 		Spec: Spec{
 			ClusterResourceWhitelist: []ClusterResourceWhitelist{
@@ -100,7 +116,7 @@ func ArgoCDProject(input *Input, api string) ArgoProject {
 					Kind:  "*",
 				},
 			},
-			Description: fmt.Sprintf("%s customer landscape", input.S.Spec.Shoot),
+			Description: fmt.Sprintf("%s customer landscape", cid),
 			Destinations: []Destinations{{
 				Namespace: "*",
 				Server:    api,

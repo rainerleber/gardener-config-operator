@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -125,6 +126,15 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}
 
+	if apiUrl != "" && argoCrConfig.Spec.DesiredOutput == "ArgoCD" {
+		reqLogger.Info("Create Project")
+		err := argocd.CreateProject(&argocd.Input{S: argoCrConfig}, apiUrl)
+		argoCrConfig.Status.ProjectName = strings.Split(argoCrConfig.Spec.Shoot, "-")[1][0:3]
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	if err := r.Client.Status().Update(ctx, argoCrConfig); err != nil {
 		reqLogger.Info("Unable to update remote Cluster secret status - try reconciling")
 		return ctrl.Result{}, err
@@ -155,6 +165,8 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return ctrl.Result{}, err
 		}
 
+		argocd.DeleteProject(req.Namespace, argoCrConfig.Status.ProjectName)
+
 		// remove finalizer from the list and update it.
 		argoCrConfig.ObjectMeta.Finalizers = []string{}
 		if err := r.Client.Update(ctx, argoCrConfig); err != nil {
@@ -163,13 +175,6 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// return with no errors
 		reqLogger.Info("CR Deleted")
 		return ctrl.Result{}, nil
-	}
-
-	if apiUrl != "" {
-		reqLogger.Info("Create Project")
-		project := argocd.ArgoCDProject(&argocd.Input{S: argoCrConfig}, apiUrl)
-		resp := argocd.CreateProject(project, req.Namespace)
-		reqLogger.Info(resp)
 	}
 
 	if changed {

@@ -46,6 +46,7 @@ type ConfigSpec struct {
 type ConfigStatus struct {
 	Phase           string       `json:"phase,omitempty"`
 	LastUpdatedTime *metav1.Time `json:"lastUpdatedTime,omitempty"`
+	ProjectName     string       `json:"projectName,omitempty"`
 }
 
 //+kubebuilder:object:root=true
