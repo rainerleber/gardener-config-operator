@@ -166,7 +166,6 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if apiUrl != "" {
 		reqLogger.Info("Create argoProject")
 		referenceProject := argocd.ArgoCDProject(&argocd.Input{S: argoCrConfig}, apiUrl)
-		reqLogger.Info(referenceProject)
 		r.Client.Create(ctx, referenceProject)
 	}
 
