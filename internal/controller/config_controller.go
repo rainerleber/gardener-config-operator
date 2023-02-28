@@ -29,20 +29,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	clustergardenerv1 "cluster.gardener/config/api/v1"
-	"cluster.gardener/config/gardener"
+	customergardenerv1 "customer.gardener/config/api/v1"
+	"customer.gardener/config/pkg/argocd"
+	"customer.gardener/config/pkg/gardener"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ConfigReconciler reconciles a Config object
+// ConfigReconciler reconciles object
 type ConfigReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=cluster.gardener,resources=configs,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=cluster.gardener,resources=configs/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=cluster.gardener,resources=configs/finalizers,verbs=update
+//+kubebuilder:rbac:groups=customer.gardener,resources=configs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=customer.gardener,resources=configs/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=customer.gardener,resources=configs/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 
 // For more details, check Reconcile and its Result here:
@@ -51,7 +52,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	reqLogger := log.FromContext(ctx)
 
 	//Get CRD config object
-	argoCrConfig := &clustergardenerv1.Config{}
+	argoCrConfig := &customergardenerv1.Config{}
 
 	err := r.Client.Get(ctx, req.NamespacedName, argoCrConfig)
 	if err != nil {
@@ -59,8 +60,10 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	referenceSecret := &v1.Secret{}
+
 	var message string
 	var changed bool
+	var apiUrl string
 
 	// Generate a new secret
 	// Logic: if client.get produce error no secret is present
@@ -69,13 +72,15 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if errors.IsNotFound(err) {
 
 			// Generate new Secret with Token
-			newSecret, err := gardener.GenerateSecret(&gardener.Input{
+			newSecret, newApi, err := gardener.GenerateSecret(&gardener.Input{
 				S: argoCrConfig,
 			})
 			if err != nil {
 				reqLogger.Error(err, "Unable to generate secret")
 				return ctrl.Result{}, err
 			}
+			// export api rul
+			apiUrl = newApi
 
 			message = fmt.Sprintf("Generate new remote Cluster secret %s/%s", req.Namespace, argoCrConfig.Spec.Shoot)
 			reqLogger.Info(message)
@@ -83,6 +88,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				reqLogger.Info("Unable to Create secret - try reconciling")
 				return ctrl.Result{}, err
 			}
+
 			changed = true
 			argoCrConfig.Status.Phase = "Created"
 			argoCrConfig.Status.LastUpdatedTime = &metav1.Time{Time: time.Now()}
@@ -99,7 +105,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			reqLogger.Info(message)
 
 			// Generate new Secret with Token
-			newSecret, err := gardener.GenerateSecret(&gardener.Input{
+			newSecret, _, err := gardener.GenerateSecret(&gardener.Input{
 				S: argoCrConfig,
 			})
 			if err != nil {
@@ -123,7 +129,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// Finalizer
-	finalizerName := []string{"configs.cluster.gardener/finalizer"}
+	finalizerName := []string{"configs.customer.gardener/finalizer"}
 
 	// examine DeletionTimestamp to determine if object is under deletion
 	if argoCrConfig.ObjectMeta.DeletionTimestamp.IsZero() {
@@ -156,6 +162,12 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		reqLogger.Info("CR Deleted")
 		return ctrl.Result{}, nil
 	}
+
+	if apiUrl != "" {
+		referenceProject := argocd.ArgoCDProject(&argocd.Input{S: argoCrConfig}, apiUrl)
+		r.Client.Create(ctx, referenceProject)
+	}
+
 	if changed {
 		message = fmt.Sprintf("RequeueAfter: %s", argoCrConfig.Spec.Frequency.Duration)
 		reqLogger.Info(message)
@@ -167,6 +179,6 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 // SetupWithManager sets up the controller with the Manager.
 func (r *ConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clustergardenerv1.Config{}).
+		For(&customergardenerv1.Config{}).
 		Complete(r)
 }

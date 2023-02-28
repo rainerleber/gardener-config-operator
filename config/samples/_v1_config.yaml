@@ -1,13 +1,13 @@
-apiVersion: cluster.gardener/v1
+apiVersion: customer.gardener/v1
 kind: Config
 metadata:
   labels:
     app.kubernetes.io/name: config
-    app.kubernetes.io/instance: config-sample
+    app.kubernetes.io/instance: config-aws-uni
     app.kubernetes.io/part-of: gardener-config-operator
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: gardener-config-operator
-  name: config-sample
+  name: config-aws-uni
 spec:
   project: ecs-cs
   shoot: test-un10001

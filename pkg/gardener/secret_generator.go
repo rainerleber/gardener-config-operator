@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	gardener "cluster.gardener/config/api/v1"
+	customergardenerv1 "customer.gardener/config/api/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -22,22 +22,22 @@ var secretMeta = metav1.TypeMeta{
 }
 
 type Input struct {
-	S *gardener.Config
+	S *customergardenerv1.Config
 }
 
 // generate a secret to define declarative a managed ArgoCD Cluster
-func GenerateSecret(input *Input) (*v1.Secret, error) {
+func GenerateSecret(input *Input) (*v1.Secret, string, error) {
 	// add 60 Seconds concurrency to prevent reconciling gaps
 	frequency := input.S.Spec.Frequency.Duration.Seconds() + (time.Duration(60) * time.Second).Seconds()
 
 	returendInfo, err := GetInfo(input.S.Spec.Project, input.S.Spec.Shoot)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	returendData, err := GetConfig(input.S.Spec.Project, input.S.Spec.Shoot, int(frequency), input.S.Spec.DesiredOutput)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	if input.S.Spec.DesiredOutput == "ArgoCD" {
@@ -78,7 +78,7 @@ func GenerateSecret(input *Input) (*v1.Secret, error) {
 				"server": byteClusterAddress,
 				"config": byteConfig,
 			},
-		}, nil
+		}, returendData[1], nil
 	} else {
 		decodedKubeConfig, _ := base64.StdEncoding.DecodeString(returendData[0])
 		return &v1.Secret{
@@ -90,6 +90,6 @@ func GenerateSecret(input *Input) (*v1.Secret, error) {
 			Data: map[string][]byte{
 				"kubeconfig": []byte(decodedKubeConfig),
 			},
-		}, nil
+		}, returendData[1], nil
 	}
 }

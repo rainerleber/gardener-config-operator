@@ -1,4 +1,4 @@
-module cluster.gardener/config
+module customer.gardener/config
 
 go 1.20
 
