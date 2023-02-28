@@ -30,7 +30,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	clustergardenerv1 "cluster.gardener/config/api/v1"
+	clustergardenerv1 "customer.gardener/config/api/v1"
 	//+kubebuilder:scaffold:imports
 )
 

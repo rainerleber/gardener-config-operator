@@ -34,8 +34,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	clustergardenerv1 "cluster.gardener/config/api/v1"
-	"cluster.gardener/config/internal/controller"
+	clustergardenerv1 "customer.gardener/config/api/v1"
+	"customer.gardener/config/internal/controller"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -93,7 +93,7 @@ func main() {
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "f98ee0fe.cluster.gardener",
+		LeaderElectionID:       "f98ee0fe.customer.gardener",
 		Namespace:              watchNamespace,
 	}
 

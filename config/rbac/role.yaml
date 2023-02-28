@@ -18,7 +18,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - cluster.gardener
+  - customer.gardener
   resources:
   - configs
   verbs:
@@ -30,13 +30,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - cluster.gardener
+  - customer.gardener
   resources:
   - configs/finalizers
   verbs:
   - update
 - apiGroups:
-  - cluster.gardener
+  - customer.gardener
   resources:
   - configs/status
   verbs:
