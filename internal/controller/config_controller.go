@@ -129,10 +129,10 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if apiUrl != "" && argoCrConfig.Spec.DesiredOutput == "ArgoCD" {
 		reqLogger.Info("Create Project")
 		err := argocd.CreateProject(&argocd.Input{S: argoCrConfig}, apiUrl)
-		argoCrConfig.Status.ProjectName = strings.Split(argoCrConfig.Spec.Shoot, "-")[1][0:3]
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+		argoCrConfig.Status.ProjectName = strings.Split(argoCrConfig.Spec.Shoot, "-")[1][0:3]
 	}
 
 	if err := r.Client.Status().Update(ctx, argoCrConfig); err != nil {
@@ -164,7 +164,10 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			// dependency here, return with error so that it can be retried
 			return ctrl.Result{}, err
 		}
-		argocd.DeleteProject(req.Namespace, argoCrConfig.Status.ProjectName)
+		if argoCrConfig.Status.ProjectName != "" {
+			argocd.DeleteProject(req.Namespace, argoCrConfig.Status.ProjectName)
+			reqLogger.Info("ArgoCD Project Deleted")
+		}
 
 		// remove finalizer from the list and update it.
 		argoCrConfig.ObjectMeta.Finalizers = []string{}
