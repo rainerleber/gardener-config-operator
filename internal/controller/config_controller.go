@@ -166,7 +166,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	if apiUrl != "" {
 		reqLogger.Info("Create argoProject")
-		err := r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: argoCrConfig.Spec.Shoot}, referenceProject)
+		err := r.Client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: "un1"}, referenceProject)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
