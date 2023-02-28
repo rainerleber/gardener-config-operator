@@ -45,7 +45,7 @@ type ConfigReconciler struct {
 //+kubebuilder:rbac:groups=customer.gardener,resources=configs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=customer.gardener,resources=configs/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups="argoproj.io",resources=secrets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="argoproj.io",resources=appprojects,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=appprojects,verbs=get;list;watch;create;update;patch;delete
 
 // For more details, check Reconcile and its Result here:
@@ -166,6 +166,7 @@ func (r *ConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	if apiUrl != "" {
+		reqLogger.Info("Create Project")
 		project := argocd.ArgoCDProject(&argocd.Input{S: argoCrConfig}, apiUrl)
 		resp := argocd.CreateProject(project, req.Namespace)
 		reqLogger.Info(resp)

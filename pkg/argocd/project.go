@@ -55,7 +55,7 @@ type Input struct {
 	S *customergardenerv1.Config
 }
 
-func CreateProject(project *ArgoProject, namespace string) string {
+func CreateProject(project ArgoProject, namespace string) string {
 
 	json, err := json.Marshal(project)
 	if err != nil {
@@ -79,11 +79,11 @@ func CreateProject(project *ArgoProject, namespace string) string {
 	return string(resp)
 }
 
-func ArgoCDProject(input *Input, api string) *ArgoProject {
+func ArgoCDProject(input *Input, api string) ArgoProject {
 
 	cid := strings.Split(input.S.Spec.Shoot, "-")[1][0:3]
 
-	return &ArgoProject{
+	return ArgoProject{
 		APIVersion: "argoproj.io/v1alpha1",
 		Kind:       "AppProject",
 		Metadata: Metadata{
