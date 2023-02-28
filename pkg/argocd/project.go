@@ -12,43 +12,43 @@ import (
 )
 
 type ArgoProject struct {
-	APIVersion string   `yaml:"apiVersion"`
-	Kind       string   `yaml:"kind"`
-	Metadata   Metadata `yaml:"metadata"`
-	Spec       Spec     `yaml:"spec"`
+	APIVersion string   `json:"apiVersion"`
+	Kind       string   `json:"kind"`
+	Metadata   Metadata `json:"metadata"`
+	Spec       Spec     `json:"spec"`
 }
 
 type Metadata struct {
-	Annotations map[string]string `yaml:"annotations"`
-	Name        string            `yaml:"name"`
-	Namespace   string            `yaml:"namespace"`
+	Annotations map[string]string `json:"annotations"`
+	Name        string            `json:"name"`
+	Namespace   string            `json:"namespace"`
 }
 
 type ClusterResourceWhitelist struct {
-	Group string `yaml:"group"`
-	Kind  string `yaml:"kind"`
+	Group string `json:"group"`
+	Kind  string `json:"kind"`
 }
 
 type Destinations struct {
-	Namespace string `yaml:"namespace"`
-	Server    string `yaml:"server"`
+	Namespace string `json:"namespace"`
+	Server    string `json:"server"`
 }
 type NamespaceResourceWhitelist struct {
-	Group string `yaml:"group"`
-	Kind  string `yaml:"kind"`
+	Group string `json:"group"`
+	Kind  string `json:"kind"`
 }
 
 type Roles struct {
-	Name     string   `yaml:"name"`
-	Policies []string `yaml:"policies"`
+	Name     string   `json:"name"`
+	Policies []string `json:"policies"`
 }
 type Spec struct {
-	ClusterResourceWhitelist   []ClusterResourceWhitelist   `yaml:"clusterResourceWhitelist"`
-	Description                string                       `yaml:"description"`
-	Destinations               []Destinations               `yaml:"destinations"`
-	NamespaceResourceWhitelist []NamespaceResourceWhitelist `yaml:"namespaceResourceWhitelist"`
-	Roles                      []Roles                      `yaml:"roles"`
-	SourceRepos                []string                     `yaml:"sourceRepos"`
+	ClusterResourceWhitelist   []ClusterResourceWhitelist   `json:"clusterResourceWhitelist"`
+	Description                string                       `json:"description"`
+	Destinations               []Destinations               `json:"destinations"`
+	NamespaceResourceWhitelist []NamespaceResourceWhitelist `json:"namespaceResourceWhitelist"`
+	Roles                      []Roles                      `json:"roles"`
+	SourceRepos                []string                     `json:"sourceRepos"`
 }
 
 type Input struct {
